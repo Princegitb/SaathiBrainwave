@@ -306,13 +306,13 @@ async def check_message(text: str, deep_check: bool = False) -> dict:
 
     Args:
         text: The message text to check.
-        deep_check: If True, also runs LLM classification for ambiguous cases.
+        deep_check: If True, runs LLM classification when sensitive or ambiguous words are present.
 
     Returns:
         dict with safety result + optional crisis response.
         Includes "redacted" field if redaction occurred.
     """
-    # Stage 1: Fast keyword pass
+    # Stage 1: Fast keyword pass (sub-millisecond)
     result = _fast_keyword_check(text)
 
     # If the fast pass flagged it, return immediately
@@ -322,13 +322,17 @@ async def check_message(text: str, deep_check: bool = False) -> dict:
             response["crisis_response"] = CRISIS_RESPONSE
         return response
 
-    # Stage 2: LLM classification for deeper analysis (if requested)
+    # Stage 2: LLM classification for sensitive/ambiguous phrases
     if deep_check:
-        result = await _llm_classify(text)
-        if not result.is_safe:
-            response = result.to_dict()
-            if result.crisis:
-                response["crisis_response"] = CRISIS_RESPONSE
-            return response
+        lower = text.lower()
+        risk_cues = ["help", "hurt", "die", "kill", "sad", "hopeless", "pain", "leave", "alone", "hate", "scared", "afraid"]
+        if any(w in lower for w in risk_cues):
+            result = await _llm_classify(text)
+            if not result.is_safe:
+                response = result.to_dict()
+                if result.crisis:
+                    response["crisis_response"] = CRISIS_RESPONSE
+                return response
 
     return SafetyResult(is_safe=True).to_dict()
+
