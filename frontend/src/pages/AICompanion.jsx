@@ -5,6 +5,7 @@ import ChatBubble from '../components/ui/ChatBubble';
 import DisclaimerStrip from '../components/ui/DisclaimerStrip';
 import SaraAvatar from '../components/ui/SaraAvatar';
 import { useChatStore } from '../store/chatStore';
+import useUserStore from '../store/userStore';
 import { synthesizeSpeech } from '../utils/speechUtils';
 
 /**
@@ -55,6 +56,9 @@ const RECOGNITION_LANGUAGES = [
 ];
 
 export default function AICompanion() {
+  const userGender = useUserStore((s) => s.gender) || 'female';
+  const setGender = useUserStore((s) => s.setGender);
+
   const [input, setInput] = useState('');
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'call'
   const [autoPlay, setAutoPlay] = useState(false);
@@ -784,12 +788,11 @@ export default function AICompanion() {
               { id: 'male', label: 'Male 👨' },
               { id: 'neutral', label: 'Neutral ✨' },
             ].map((item) => {
-              const currentGender = useUserStore((s) => s.gender) || 'female';
-              const active = currentGender === item.id;
+              const active = userGender === item.id;
               return (
                 <button
                   key={item.id}
-                  onClick={() => useUserStore.getState().setGender(item.id)}
+                  onClick={() => setGender && setGender(item.id)}
                   className={`flex-1 py-1 px-2 rounded-full text-[11.5px] font-medium transition-all cursor-pointer ${
                     active
                       ? 'bg-primary text-white font-semibold shadow-sm'
