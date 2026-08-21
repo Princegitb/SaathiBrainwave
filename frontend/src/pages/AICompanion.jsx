@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, Mic, Volume2, VolumeX, Sparkles, Loader2, PhoneOff, Phone, Radio } from 'lucide-react';
+import { ArrowUp, Mic, MicOff, Volume2, VolumeX, Sparkles, Loader2, PhoneOff, Phone, Radio, Globe, Send, RefreshCw } from 'lucide-react';
 import ChatBubble from '../components/ui/ChatBubble';
 import DisclaimerStrip from '../components/ui/DisclaimerStrip';
 import SaraAvatar from '../components/ui/SaraAvatar';
@@ -11,7 +11,7 @@ import { synthesizeSpeech } from '../utils/speechUtils';
  * AI Companion ("Sara")
  * Dedicated Separation:
  * - 💬 Chat Mode: Text conversation thread with message history & quick prompts.
- * - 📞 Voice Call Mode: Dedicated hands-free calling room with zero-flicker state machine & real-time subtitles.
+ * - 📞 Voice Call Mode: Dedicated calling room with audio visualizer, mute option, language switch, & instant send.
  */
 
 const STARTING_POINTS = [
@@ -47,22 +47,37 @@ const STARTING_POINTS = [
   },
 ];
 
+const RECOGNITION_LANGUAGES = [
+  { code: 'en-IN', label: 'Hinglish / Indian English (en-IN)' },
+  { code: 'hi-IN', label: 'Hindi (hi-IN)' },
+  { code: 'en-US', label: 'English (US)' },
+];
+
 export default function AICompanion() {
   const [input, setInput] = useState('');
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'call'
   const [autoPlay, setAutoPlay] = useState(false);
 
-  // ── Voice Call State Machine ──
+  // ── Voice Call State ──
   // 'idle' | 'listening' | 'thinking' | 'speaking'
   const [callState, setCallState] = useState('idle');
   const [callStatusText, setCallStatusText] = useState('Ready when you are');
   const [userSpeechCaption, setUserSpeechCaption] = useState('');
   const [saraSpeechCaption, setSaraSpeechCaption] = useState('');
+  const [isMuted, setIsMuted] = useState(false);
+  const [selectedLang, setSelectedLang] = useState('en-IN');
+  const [audioLevel, setAudioLevel] = useState(0); // 0 to 100 for live visualizer
 
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
   const silenceTimerRef = useRef(null);
-  const callStateRef = useRef('idle'); // single source of truth for async callbacks
+  const callStateRef = useRef('idle');
+  const isMutedRef = useRef(false);
+  const selectedLangRef = useRef('en-IN');
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const animFrameRef = useRef(null);
 
   const {
     companionMessages,
@@ -75,22 +90,21 @@ export default function AICompanion() {
     fetchCompanionHistory();
   }, [fetchCompanionHistory]);
 
+  // Keep refs synced
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  useEffect(() => {
+    selectedLangRef.current = selectedLang;
+  }, [selectedLang]);
+
   // Auto-scroll chat
   useEffect(() => {
     if (activeTab === 'chat') {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [companionMessages, companionLoading, activeTab]);
-
-  // Only auto-play in chat tab if user checked autoPlay
-  useEffect(() => {
-    if (autoPlay && activeTab === 'chat' && companionMessages.length > 0) {
-      const last = companionMessages[companionMessages.length - 1];
-      if (last.role === 'assistant') {
-        synthesizeSpeech(last.content);
-      }
-    }
-  }, [companionMessages, autoPlay, activeTab]);
 
   // Helper to safely transition call state
   const updateCallState = (newState, statusText = '') => {
@@ -99,11 +113,62 @@ export default function AICompanion() {
     if (statusText) setCallStatusText(statusText);
   };
 
+  // ── START LIVE MICROPHONE AUDIO VISUALIZER ──
+  const startAudioVisualizer = async () => {
+    try {
+      if (mediaStreamRef.current) return;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContext();
+      audioContextRef.current = audioCtx;
+
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      analyserRef.current = analyser;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const updateVolume = () => {
+        if (!isMutedRef.current && callStateRef.current === 'listening') {
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          const avg = sum / dataArray.length;
+          setAudioLevel(Math.min(100, Math.round(avg * 1.5)));
+        } else {
+          setAudioLevel(0);
+        }
+        animFrameRef.current = requestAnimationFrame(updateVolume);
+      };
+      updateVolume();
+    } catch (e) {
+      console.warn('Microphone visualizer initialization notice:', e);
+    }
+  };
+
+  const stopAudioVisualizer = () => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch (e) {}
+      audioContextRef.current = null;
+    }
+    setAudioLevel(0);
+  };
+
   // ── START LISTENING IN VOICE CALL ──
   const startListeningTurn = useCallback(() => {
-    if (activeTab !== 'call' || callStateRef.current === 'idle') return;
+    if (activeTab !== 'call' || callStateRef.current === 'idle' || isMutedRef.current) return;
 
-    // Abort existing recognition safely
     if (recognitionRef.current) {
       try {
         recognitionRef.current.onend = null;
@@ -123,14 +188,14 @@ export default function AICompanion() {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'hi-IN';
+    recognition.lang = selectedLangRef.current;
 
     recognition.onstart = () => {
-      if (callStateRef.current === 'idle') {
+      if (callStateRef.current === 'idle' || isMutedRef.current) {
         try { recognition.abort(); } catch (e) {}
         return;
       }
-      updateCallState('listening', 'Sara is listening...');
+      updateCallState('listening', 'Sara is listening to you...');
       setUserSpeechCaption('');
     };
 
@@ -162,16 +227,17 @@ export default function AICompanion() {
           synthesizeSpeech(lastMsg.content, () => {
             if (callStateRef.current === 'idle') return;
 
-            // Audio finished! Transition back to listening
+            // Finished speaking — resume listening for user's next sentence
             setUserSpeechCaption('');
             setSaraSpeechCaption('');
-            updateCallState('listening', 'Sara is listening...');
+            updateCallState('listening', 'Sara is listening to you...');
             setTimeout(() => {
-              startListeningTurn();
+              if (!isMutedRef.current && callStateRef.current !== 'idle') {
+                startListeningTurn();
+              }
             }, 300);
           });
         } else {
-          // Fallback if no reply
           setTimeout(() => {
             if (callStateRef.current !== 'idle') startListeningTurn();
           }, 600);
@@ -184,6 +250,7 @@ export default function AICompanion() {
     };
 
     recognition.onresult = (event) => {
+      if (isMutedRef.current) return;
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
@@ -198,27 +265,26 @@ export default function AICompanion() {
 
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
-      // Auto-detect end of speech after 900ms pause
+      // Auto-detect silence after 950ms of speech
       if (current.length >= 2) {
         silenceTimerRef.current = setTimeout(() => {
           submitVoiceQuery(current);
-        }, 900);
+        }, 950);
       }
     };
 
     recognition.onerror = (e) => {
-      if (e.error !== 'aborted' && callStateRef.current === 'listening') {
+      if (e.error !== 'aborted' && callStateRef.current === 'listening' && !isMutedRef.current) {
         setTimeout(() => {
-          if (callStateRef.current === 'listening') startListeningTurn();
+          if (callStateRef.current === 'listening' && !isMutedRef.current) startListeningTurn();
         }, 500);
       }
     };
 
     recognition.onend = () => {
-      // If recognition stopped unexpectedly while in listening mode, revive it
-      if (callStateRef.current === 'listening') {
+      if (callStateRef.current === 'listening' && !isMutedRef.current) {
         setTimeout(() => {
-          if (callStateRef.current === 'listening') startListeningTurn();
+          if (callStateRef.current === 'listening' && !isMutedRef.current) startListeningTurn();
         }, 300);
       }
     };
@@ -234,14 +300,17 @@ export default function AICompanion() {
   // ── CALL CONTROLS ──
   const startCall = () => {
     setActiveTab('call');
+    setIsMuted(false);
+    isMutedRef.current = false;
     setUserSpeechCaption('');
     setSaraSpeechCaption('');
-    updateCallState('listening', 'Sara is listening...');
+    updateCallState('listening', 'Sara is listening to you...');
 
-    // Short greeting before first listen if messages are empty
+    startAudioVisualizer();
+
     setTimeout(() => {
       startListeningTurn();
-    }, 200);
+    }, 250);
   };
 
   const endCall = () => {
@@ -257,14 +326,64 @@ export default function AICompanion() {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    stopAudioVisualizer();
     setUserSpeechCaption('');
     setSaraSpeechCaption('');
     setActiveTab('chat');
   };
 
-  // Clean up on unmount or tab switch
+  const toggleMute = () => {
+    if (isMuted) {
+      setIsMuted(false);
+      isMutedRef.current = false;
+      if (callStateRef.current === 'listening') {
+        startListeningTurn();
+      }
+    } else {
+      setIsMuted(true);
+      isMutedRef.current = true;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.onend = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.abort();
+        } catch (e) {}
+      }
+      setAudioLevel(0);
+    }
+  };
+
+  const manualSendVoice = () => {
+    if (!userSpeechCaption.trim()) return;
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    const t = userSpeechCaption.trim();
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.abort();
+      } catch (e) {}
+    }
+    updateCallState('thinking', 'Sara is thinking...');
+    sendCompanionMessage(t, { isVoiceMode: true }).then(() => {
+      const msgs = useChatStore.getState().companionMessages;
+      const last = msgs[msgs.length - 1];
+      if (last?.role === 'assistant') {
+        updateCallState('speaking', 'Sara is speaking...');
+        setSaraSpeechCaption(last.content);
+        synthesizeSpeech(last.content, () => {
+          setUserSpeechCaption('');
+          setSaraSpeechCaption('');
+          updateCallState('listening', 'Sara is listening to you...');
+          if (!isMutedRef.current) startListeningTurn();
+        });
+      }
+    });
+  };
+
   useEffect(() => {
     return () => {
+      stopAudioVisualizer();
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (recognitionRef.current) {
         try {
@@ -298,7 +417,7 @@ export default function AICompanion() {
       {/* ── MAIN INTERACTION AREA (8 cols) ── */}
       <div className="lg:col-span-8 flex flex-col h-full bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-card border border-border-subtle relative overflow-hidden">
         
-        {/* Header with Mode Switcher */}
+        {/* Top Header Bar */}
         <div className="flex items-center justify-between pb-4 border-b border-border-subtle mb-4">
           <div className="flex items-center gap-3">
             <SaraAvatar size="sm" emotion={companionLoading || callState === 'thinking' ? 'thinking' : 'happy'} />
@@ -427,98 +546,133 @@ export default function AICompanion() {
         {/* ── TAB 2: DEDICATED LIVE VOICE CALL ROOM ── */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {activeTab === 'call' && (
-          <div className="flex flex-col flex-1 items-center justify-between py-6 px-4 select-none relative bg-gradient-to-b from-[#1E1736] via-[#2A1842] to-[#161028] rounded-2xl text-white overflow-hidden shadow-2xl">
+          <div className="flex flex-col flex-1 items-center justify-between py-6 px-4 select-none relative bg-gradient-to-b from-[#18122B] via-[#241438] to-[#120D22] rounded-2xl text-white overflow-hidden shadow-2xl">
             
-            {/* Call Status Pill */}
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-[13px] font-medium backdrop-blur-md">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>Live Sara Voice Call (ElevenLabs Multilingual v2)</span>
+            {/* Top Toolbar: Status & Language Selector */}
+            <div className="flex flex-wrap items-center justify-between gap-3 w-full max-w-lg px-2">
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-[12px] font-medium backdrop-blur-md">
+                <span className={`w-2.5 h-2.5 rounded-full ${isMuted ? 'bg-danger' : 'bg-emerald-400 animate-ping'}`} />
+                <span>{isMuted ? 'Microphone Muted' : 'Live Sara Voice Call'}</span>
+              </div>
+
+              {/* Language Selector Dropdown */}
+              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 text-[12px]">
+                <Globe size={13} className="text-primary-light" />
+                <select
+                  value={selectedLang}
+                  onChange={(e) => {
+                    setSelectedLang(e.target.value);
+                    selectedLangRef.current = e.target.value;
+                    if (callState === 'listening' && !isMuted) {
+                      startListeningTurn();
+                    }
+                  }}
+                  className="bg-transparent text-white text-[12px] font-medium outline-none cursor-pointer"
+                >
+                  {RECOGNITION_LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code} className="bg-[#1E1736] text-white">
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Central Animated Speaking/Listening Orb */}
-            <div className="text-center space-y-6 my-auto max-w-md w-full">
-              <div className="relative mx-auto w-40 h-40 flex items-center justify-center">
-                {callState === 'listening' && (
+            {/* Central Speaking / Listening Orb + Live Audio Visualizer */}
+            <div className="text-center space-y-5 my-auto max-w-md w-full">
+              <div className="relative mx-auto w-44 h-44 flex items-center justify-center">
+                
+                {/* Dynamic Audio Visualizer Rings */}
+                {callState === 'listening' && !isMuted && (
                   <>
-                    <div className="absolute inset-0 rounded-full bg-primary/40 animate-ping opacity-60" />
-                    <div className="absolute -inset-4 rounded-full bg-primary/20 animate-pulse opacity-40" />
+                    <div 
+                      className="absolute inset-0 rounded-full bg-primary/30 transition-all duration-75"
+                      style={{ transform: `scale(${1 + audioLevel / 80})` }}
+                    />
+                    <div 
+                      className="absolute -inset-3 rounded-full bg-primary/15 transition-all duration-75"
+                      style={{ transform: `scale(${1 + audioLevel / 60})` }}
+                    />
                   </>
                 )}
+
                 {callState === 'thinking' && (
                   <div className="absolute inset-0 rounded-full border-4 border-t-amber-400 border-r-transparent border-b-primary border-l-transparent animate-spin" />
                 )}
+
                 {callState === 'speaking' && (
                   <>
-                    <div className="absolute inset-0 rounded-full bg-emerald-500/30 animate-ping opacity-50" />
+                    <div className="absolute inset-0 rounded-full bg-emerald-500/30 animate-ping opacity-60" />
                     <div className="absolute -inset-4 rounded-full bg-emerald-400/20 animate-pulse" />
                   </>
                 )}
 
+                {/* Center Orb */}
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
-                    if (callState === 'listening' && userSpeechCaption) {
-                      // Manual tap sends immediately without waiting for silence
-                      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-                      const t = userSpeechCaption;
-                      if (recognitionRef.current) try { recognitionRef.current.abort(); } catch (e) {}
-                      updateCallState('thinking', 'Sara is thinking...');
-                      sendCompanionMessage(t, { isVoiceMode: true }).then(() => {
-                        const msgs = useChatStore.getState().companionMessages;
-                        const last = msgs[msgs.length - 1];
-                        if (last?.role === 'assistant') {
-                          updateCallState('speaking', 'Sara is speaking...');
-                          setSaraSpeechCaption(last.content);
-                          synthesizeSpeech(last.content, () => {
-                            setUserSpeechCaption('');
-                            setSaraSpeechCaption('');
-                            updateCallState('listening', 'Sara is listening...');
-                            startListeningTurn();
-                          });
-                        }
-                      });
+                    if (callState === 'listening' && userSpeechCaption.trim()) {
+                      manualSendVoice();
                     } else if (callState !== 'listening' && callState !== 'speaking' && callState !== 'thinking') {
                       startListeningTurn();
                     }
                   }}
                   className={`w-32 h-32 rounded-full flex flex-col items-center justify-center text-4xl shadow-2xl transition-all cursor-pointer ${
-                    callState === 'listening'
-                      ? 'bg-gradient-to-tr from-primary to-purple-500 text-white shadow-primary/50'
+                    isMuted
+                      ? 'bg-gradient-to-tr from-gray-700 to-gray-600 text-white shadow-gray-700/50'
+                      : callState === 'listening'
+                      ? 'bg-gradient-to-tr from-primary via-purple-500 to-indigo-500 text-white shadow-primary/60'
                       : callState === 'thinking'
                       ? 'bg-gradient-to-tr from-amber-500 to-orange-400 text-white shadow-amber-500/40 animate-pulse'
-                      : 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-emerald-500/50'
+                      : 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-emerald-500/60'
                   }`}
                 >
-                  <span>{callState === 'listening' ? '🎙️' : callState === 'thinking' ? '🔮' : '✨'}</span>
+                  <span>{isMuted ? '🔇' : callState === 'listening' ? '🎙️' : callState === 'thinking' ? '🔮' : '✨'}</span>
                   <span className="text-[10px] uppercase font-bold tracking-widest mt-1 opacity-80">
-                    {callState}
+                    {isMuted ? 'Muted' : callState}
                   </span>
                 </motion.div>
               </div>
 
-              {/* Status and Dynamic Captions */}
-              <div className="space-y-3">
+              {/* Status Header */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-center gap-2">
-                  <h3 className="text-[22px] font-bold tracking-tight">{callStatusText}</h3>
+                  <h3 className="text-[22px] font-bold tracking-tight">
+                    {isMuted ? 'Microphone is Muted' : callStatusText}
+                  </h3>
                   {callState === 'thinking' && <Loader2 size={18} className="animate-spin text-amber-300" />}
                 </div>
 
-                <div className="min-h-[70px] flex items-center justify-center px-4">
-                  {callState === 'listening' && (
-                    <div className="bg-white/10 backdrop-blur-md rounded-2xl px-5 py-3 border border-white/15 max-w-md w-full text-center">
-                      <p className="text-[14px] text-white/90">
-                        {userSpeechCaption ? `"${userSpeechCaption}"` : 'Bolo bhai, main sun rahi hoon... (Speak freely)'}
+                {/* Dynamic Speech Captions Box */}
+                <div className="min-h-[75px] flex flex-col items-center justify-center px-4">
+                  {callState === 'listening' && !isMuted && (
+                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/15 max-w-md w-full text-center space-y-2">
+                      <p className="text-[14.5px] text-white/95 font-medium min-h-[22px]">
+                        {userSpeechCaption ? `"${userSpeechCaption}"` : 'Bolo bhai, main sun rahi hoon... (Start speaking)'}
                       </p>
                       {userSpeechCaption && (
-                        <span className="text-[11px] text-primary-light mt-1 block">Tap center orb to send immediately</span>
+                        <div className="flex items-center justify-center gap-2 pt-1">
+                          <button
+                            onClick={manualSendVoice}
+                            className="py-1 px-3.5 rounded-full bg-primary text-white text-[12px] font-semibold flex items-center gap-1.5 hover:bg-primary-dark cursor-pointer shadow-sm"
+                          >
+                            <Send size={12} /> Send Now
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
 
+                  {isMuted && (
+                    <p className="text-[13.5px] text-white/60 italic">
+                      Unmute below to speak with Sara.
+                    </p>
+                  )}
+
                   {callState === 'thinking' && (
                     <p className="text-[13.5px] text-white/70 italic max-w-md">
-                      Sara is preparing a short response in natural Hindi/English...
+                      Sara is preparing a short response in natural Hindi & English...
                     </p>
                   )}
 
@@ -533,14 +687,29 @@ export default function AICompanion() {
               </div>
             </div>
 
-            {/* End Call Button */}
-            <div className="flex items-center gap-4">
+            {/* Bottom Call Controls (Mute, Restart Listening, End Call) */}
+            <div className="flex items-center justify-center gap-4 pt-2">
+              {/* Mute Button */}
+              <button
+                onClick={toggleMute}
+                className={`p-3.5 rounded-full font-semibold text-[13.5px] flex items-center gap-2 transition-all cursor-pointer shadow-md ${
+                  isMuted
+                    ? 'bg-danger text-white hover:bg-danger-dark ring-2 ring-danger/50'
+                    : 'bg-white/15 text-white hover:bg-white/25 border border-white/20'
+                }`}
+                title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+              >
+                {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+                <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+              </button>
+
+              {/* End Call Button */}
               <button
                 onClick={endCall}
-                className="py-3.5 px-8 rounded-full bg-danger/90 hover:bg-danger text-white font-semibold text-[14px] flex items-center gap-2.5 shadow-lg shadow-danger/30 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                className="py-3.5 px-7 rounded-full bg-danger text-white font-semibold text-[14px] flex items-center gap-2.5 shadow-lg shadow-danger/40 transition-all cursor-pointer hover:bg-danger-dark hover:scale-105 active:scale-95"
               >
                 <PhoneOff size={18} />
-                <span>End Voice Call</span>
+                <span>End Call</span>
               </button>
             </div>
           </div>
