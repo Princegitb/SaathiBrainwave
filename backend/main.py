@@ -31,7 +31,7 @@ app = FastAPI(
 ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv(
         "CORS_ORIGINS",
-        f"{FRONTEND_URL},http://localhost:5173,http://localhost:3000"
+        f"{FRONTEND_URL},http://localhost:5173,http://localhost:3000,https://saathi-brainwave.vercel.app"
     ).split(",") if o.strip()
 ]
 
