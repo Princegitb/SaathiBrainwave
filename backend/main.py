@@ -5,6 +5,7 @@ Main entry point with CORS, REST routes, and startup checks.
 
 import logging
 import os
+import threading
 from datetime import datetime, timezone
 
 from fastapi import FastAPI
@@ -12,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import FRONTEND_URL, GEMINI_API_KEY
 from database import ping_db
+from services.sentiment import preload_transformer
 
 # Configure logging — replaces scattered print() with a single stream handler.
 logging.basicConfig(
@@ -66,6 +68,12 @@ async def _startup_event():
             "MongoDB ping failed — db-backed features will degrade. "
             "Verify MONGO_URI in backend/.env and that mongod is running."
         )
+
+    # Pre-warm DistilRoBERTa Transformer model asynchronously in background
+    try:
+        threading.Thread(target=preload_transformer, daemon=True).start()
+    except Exception as e:
+        logger.warning("Background transformer thread trigger failed: %s", e)
 
 
 @app.get("/")

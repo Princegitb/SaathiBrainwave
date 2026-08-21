@@ -1,28 +1,44 @@
+import logging
+import threading
 from functools import lru_cache
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 router = APIRouter()
 
-
 MODEL_NAME = "j-hartmann/emotion-english-distilroberta-base"
 
+_TRANSFORMER_PIPELINE = None
+_IS_LOADING_TRANSFORMER = False
 
-@lru_cache(maxsize=1)
-def get_emotion_classifier():
+
+def preload_transformer():
     """
-    Load the transformer model only once.
-    The first request may take longer because the model
-    needs to be downloaded and loaded.
+    Background worker that pre-warms the HuggingFace DistilRoBERTa model.
+    Runs asynchronously at server startup so user requests never hang.
     """
-    from transformers import pipeline
-    return pipeline(
-        "text-classification",
-        model=MODEL_NAME,
-        top_k=None,
-    )
+    global _TRANSFORMER_PIPELINE, _IS_LOADING_TRANSFORMER
+    if _TRANSFORMER_PIPELINE is not None or _IS_LOADING_TRANSFORMER:
+        return
+
+    _IS_LOADING_TRANSFORMER = True
+    try:
+        logger.info("Initializing DistilRoBERTa Transformer emotion model in background...")
+        from transformers import pipeline
+        _TRANSFORMER_PIPELINE = pipeline(
+            "text-classification",
+            model=MODEL_NAME,
+            top_k=None,
+        )
+        logger.info("✅ DistilRoBERTa Transformer emotion model successfully loaded into RAM!")
+    except Exception as e:
+        logger.warning("Transformer preload notice: %s. Using bilingual rule engine.", e)
+    finally:
+        _IS_LOADING_TRANSFORMER = False
 
 
 EMOTION_TO_SENTIMENT = {
@@ -34,7 +50,6 @@ EMOTION_TO_SENTIMENT = {
     "anger": "negative",
     "disgust": "negative",
 }
-
 
 EMOTION_ACTIONS = {
     "fear": "gentle_support",
@@ -127,7 +142,9 @@ def _fallback_sentiment(text: str) -> dict:
 
 def analyze_sentiment(text: str) -> dict:
     """
-    Fast, reliable, non-blocking emotion and sentiment analysis.
+    Hybrid Sentiment & Emotion Analysis:
+    1. Uses DistilRoBERTa transformer if loaded in RAM.
+    2. Uses bilingual rules if transformer is still pre-warming.
     """
     if not text or not text.strip():
         return {
@@ -137,9 +154,36 @@ def analyze_sentiment(text: str) -> dict:
             "confidence": 0.0,
             "suggested_action": "continue_conversation",
             "is_diagnostic": False,
+            "model_source": "empty",
         }
 
-    return _fallback_sentiment(text)
+    # 1. Check if HuggingFace Transformer Pipeline is loaded in memory
+    if _TRANSFORMER_PIPELINE is not None:
+        try:
+            results = _TRANSFORMER_PIPELINE(text.strip()[:300])
+            if results and len(results) > 0:
+                predictions = results[0]
+                best = max(predictions, key=lambda item: item["score"])
+                emotion = best["label"].lower()
+                confidence = float(best["score"])
+                sentiment = EMOTION_TO_SENTIMENT.get(emotion, "neutral")
+
+                return {
+                    "sentiment": sentiment,
+                    "emotion": emotion,
+                    "intensity": round(confidence * 100),
+                    "confidence": round(confidence, 2),
+                    "suggested_action": EMOTION_ACTIONS.get(emotion, "continue_conversation"),
+                    "is_diagnostic": False,
+                    "model_source": "distilroberta-transformer",
+                }
+        except Exception as e:
+            logger.debug("Transformer inference exception: %s", e)
+
+    # 2. Fast bilingual heuristic engine
+    res = _fallback_sentiment(text)
+    res["model_source"] = "bilingual-engine"
+    return res
 
 
 @router.post("/sentiment")
