@@ -232,7 +232,7 @@ async def _llm_classify(text: str) -> SafetyResult:
         return SafetyResult(is_safe=True)
 
     try:
-        model = genai.GenerativeModel("gemini-3.6-flash")
+        model = genai.GenerativeModel("gemini-3.5-flash")
         response = model.generate_content(
             SAFETY_CLASSIFICATION_PROMPT + f'"{text}"'
         )

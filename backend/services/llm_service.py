@@ -25,8 +25,14 @@ if GEMINI_API_KEY:
     except Exception as e:
         logger.error("Failed to configure Gemini API key: %s", e)
 
-# Active Gemini models list
-GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.7-flash"]
+# Active Gemini models list with automatic fallback
+GEMINI_MODELS = [
+    "gemini-3.5-flash",
+    "gemini-flash-lite-latest",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+]
 
 # Base safety & behavioral preamble
 SAFETY_PREAMBLE = """
