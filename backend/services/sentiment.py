@@ -102,7 +102,7 @@ def _fallback_sentiment(text: str) -> dict:
 
 def analyze_sentiment(text: str) -> dict:
     """
-    Transformer-based emotion and sentiment analysis with instant fallback.
+    Fast, reliable, non-blocking emotion and sentiment analysis.
     """
     if not text or not text.strip():
         return {
@@ -113,31 +113,6 @@ def analyze_sentiment(text: str) -> dict:
             "suggested_action": "continue_conversation",
             "is_diagnostic": False,
         }
-
-    try:
-        classifier = get_emotion_classifier()
-        results = classifier(text.strip()[:300])
-
-        if results and len(results) > 0:
-            predictions = results[0]
-            best_prediction = max(predictions, key=lambda item: item["score"])
-            emotion = best_prediction["label"].lower()
-            confidence = float(best_prediction["score"])
-            sentiment = EMOTION_TO_SENTIMENT.get(emotion, "neutral")
-            intensity = round(confidence * 100)
-            suggested_action = EMOTION_ACTIONS.get(emotion, "continue_conversation")
-
-            return {
-                "sentiment": sentiment,
-                "emotion": emotion,
-                "intensity": intensity,
-                "confidence": round(confidence, 2),
-                "suggested_action": suggested_action,
-                "is_diagnostic": False,
-            }
-    except Exception as e:
-        # Fallback instantly if transformer model loading fails or takes too long
-        pass
 
     return _fallback_sentiment(text)
 
