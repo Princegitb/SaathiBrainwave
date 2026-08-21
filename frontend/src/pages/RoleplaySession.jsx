@@ -481,7 +481,7 @@ export default function RoleplaySession() {
             )}
           </AnimatePresence>
 
-          {roleplayShouldEnd && !roleplayFeedback && (
+          {roleplayShouldEnd && userTurns > 0 && !roleplayFeedback && (
             <div className="flex items-center justify-center py-8">
               <div className="flex items-center gap-3 text-text-secondary">
                 <Loader2 size={20} className="text-primary animate-spin" />

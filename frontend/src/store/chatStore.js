@@ -231,13 +231,17 @@ const useChatStore = create((set, get) => ({
   // ============================================================
 
   startRoleplay: async (scenarioId) => {
-  set({
-    roleplayMessages: [],
-    roleplayLoading: true,
-    roleplayScenario: scenarioId,
-    roleplayError: null,
-    roleplayFeedback: null,
-  });
+    set({
+      roleplayMessages: [],
+      roleplayLoading: true,
+      roleplayScenario: scenarioId,
+      roleplayError: null,
+      roleplayFeedback: null,
+      roleplayShouldEnd: false,
+      roleplayEnding: false,
+      roleplayCommunicationStats: null,
+      roleplaySentiment: null,
+    });
 
   try {
     const token = useUserStore.getState().token;

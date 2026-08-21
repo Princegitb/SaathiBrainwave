@@ -66,11 +66,15 @@ export default function AICompanion() {
   const [autoPlay, setAutoPlay] = useState(false); // DEFAULT OFF per user request!
   const [isListening, setIsListening] = useState(false);
   const [isVoiceCallActive, setIsVoiceCallActive] = useState(false);
-  const [voiceCallStatus, setVoiceCallStatus] = useState('Listening...');
+  const [voiceCallStatus, setVoiceCallStatus] = useState('Sara is listening...');
+  const [voicePhase, setVoicePhase] = useState('listening'); // 'listening' | 'thinking' | 'speaking'
   const [liveTranscript, setLiveTranscript] = useState('');
+  const [saraSpeakingText, setSaraSpeakingText] = useState('');
 
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
+  const silenceTimerRef = useRef(null);
+  const isCallActiveRef = useRef(false);
 
   const {
     companionMessages,
@@ -99,30 +103,76 @@ export default function AICompanion() {
     }
   }, [companionMessages, autoPlay, isVoiceCallActive]);
 
-  // ── CONTINUOUS 2-WAY VOICE CALL HANDLER ──
-  const startVoiceCall = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Voice calls require speech recognition. Please try in Chrome or Edge!');
-      return;
+  // ── RESILIENT MULTI-TURN VOICE CALL LOOP ──
+  const listenForUserTurn = () => {
+    if (!isCallActiveRef.current) return;
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {}
     }
 
-    setIsVoiceCallActive(true);
-    setMode('voice');
-    setVoiceCallStatus('Sara is listening...');
-    setLiveTranscript('');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'hi-IN'; // Default to Indian English / Hindi recognition
+    recognition.lang = 'hi-IN';
 
-    let silenceTimer = null;
     let finalSpeech = '';
 
     recognition.onstart = () => {
+      if (!isCallActiveRef.current) return;
       setIsListening(true);
+      setVoicePhase('listening');
       setVoiceCallStatus('Sara is listening...');
+      setSaraSpeakingText('');
+    };
+
+    const triggerSend = (textToSend) => {
+      const trimmed = textToSend.trim();
+      if (!trimmed || trimmed.length < 2 || !isCallActiveRef.current) return;
+
+      try {
+        recognition.abort();
+      } catch (e) {}
+
+      setVoicePhase('thinking');
+      setVoiceCallStatus('Sara is thinking...');
+
+      sendCompanionMessage(trimmed, { isVoiceMode: true }).then((res) => {
+        if (!isCallActiveRef.current) return;
+
+        const msgs = useChatStore.getState().companionMessages;
+        const lastMsg = msgs[msgs.length - 1];
+
+        if (lastMsg && lastMsg.role === 'assistant') {
+          setVoicePhase('speaking');
+          setVoiceCallStatus('Sara is speaking...');
+          setSaraSpeakingText(lastMsg.content);
+
+          synthesizeSpeech(lastMsg.content, () => {
+            if (!isCallActiveRef.current) return;
+            setLiveTranscript('');
+            setSaraSpeakingText('');
+            // Smoothly start listening for the next turn
+            setTimeout(() => {
+              listenForUserTurn();
+            }, 300);
+          });
+        } else {
+          // If no reply, resume listening
+          setTimeout(() => {
+            listenForUserTurn();
+          }, 600);
+        }
+      }).catch(() => {
+        if (isCallActiveRef.current) {
+          setTimeout(listenForUserTurn, 800);
+        }
+      });
     };
 
     recognition.onresult = (event) => {
@@ -138,40 +188,28 @@ export default function AICompanion() {
       const currentText = (finalSpeech + interim).trim();
       setLiveTranscript(currentText);
 
-      if (silenceTimer) clearTimeout(silenceTimer);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
-      if (currentText.length > 2) {
-        silenceTimer = setTimeout(() => {
-          try {
-            recognition.stop();
-          } catch (e) {}
-
-          setVoiceCallStatus('Sara is thinking...');
-          sendCompanionMessage(currentText, { isVoiceMode: true }).then(() => {
-            const msgs = useChatStore.getState().companionMessages;
-            const lastMsg = msgs[msgs.length - 1];
-            if (lastMsg && lastMsg.role === 'assistant') {
-              setVoiceCallStatus('Sara is speaking...');
-              synthesizeSpeech(lastMsg.content, () => {
-                setLiveTranscript('');
-                finalSpeech = '';
-                setVoiceCallStatus('Sara is listening...');
-                try {
-                  recognition.start();
-                } catch (e) {}
-              });
-            }
-          });
+      if (currentText.length >= 2) {
+        silenceTimerRef.current = setTimeout(() => {
+          triggerSend(currentText);
         }, 900);
       }
     };
 
-    recognition.onerror = () => {
-      setVoiceCallStatus('Sara is listening...');
+    recognition.onerror = (e) => {
+      console.warn('Recognition notice:', e.error);
+      if (isCallActiveRef.current && e.error !== 'aborted') {
+        setTimeout(listenForUserTurn, 400);
+      }
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      // Auto-restart if we are still in listening phase and call is active
+      if (isCallActiveRef.current && voicePhase === 'listening') {
+        setTimeout(listenForUserTurn, 300);
+      }
     };
 
     recognitionRef.current = recognition;
@@ -180,10 +218,30 @@ export default function AICompanion() {
     } catch (e) {}
   };
 
+  const startVoiceCall = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Voice calls require speech recognition. Please try in Chrome or Edge!');
+      return;
+    }
+
+    isCallActiveRef.current = true;
+    setIsVoiceCallActive(true);
+    setMode('voice');
+    setLiveTranscript('');
+    setSaraSpeakingText('');
+    setVoicePhase('listening');
+    setVoiceCallStatus('Sara is listening...');
+
+    listenForUserTurn();
+  };
+
   const stopVoiceCall = () => {
+    isCallActiveRef.current = false;
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.stop();
+        recognitionRef.current.abort();
       } catch (e) {}
     }
     if ('speechSynthesis' in window) {
@@ -193,6 +251,8 @@ export default function AICompanion() {
     setIsListening(false);
     setMode('chat');
     setLiveTranscript('');
+    setSaraSpeakingText('');
+    setVoicePhase('listening');
   };
 
   const handleSend = () => {
@@ -221,36 +281,87 @@ export default function AICompanion() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="absolute inset-0 z-40 bg-gradient-to-b from-primary-dark/95 via-primary/95 to-bg-gradient-start/95 backdrop-blur-xl flex flex-col items-center justify-between p-8 text-white"
+              className="absolute inset-0 z-40 bg-gradient-to-b from-[#1C1635]/95 via-[#2E1A47]/95 to-[#16102B]/95 backdrop-blur-2xl flex flex-col items-center justify-between p-8 text-white select-none"
             >
-              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-[13px] font-medium">
-                <Radio size={14} className="text-success animate-pulse" />
-                <span>Live Voice Call with Sara (Indian Hinglish Voice)</span>
+              {/* Call Header */}
+              <div className="flex items-center justify-between w-full max-w-lg">
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-[12.5px] font-medium backdrop-blur-md">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>Sara Voice Call (Hindi & English)</span>
+                </div>
+                <div className="text-[12px] text-white/60 font-mono">
+                  {voicePhase === 'listening' ? '🎙️ Mic Active' : voicePhase === 'thinking' ? '⚡ Processing' : '🔊 Speaking'}
+                </div>
               </div>
 
-              <div className="text-center space-y-6 my-auto">
-                <div className="relative mx-auto w-32 h-32 flex items-center justify-center">
-                  <div className="absolute inset-0 rounded-full bg-white/20 animate-ping opacity-75" />
-                  <div className="w-28 h-28 rounded-full bg-white text-primary flex items-center justify-center shadow-card-lg text-4xl">
-                    🔮
+              {/* Central Visual Animation */}
+              <div className="text-center space-y-6 my-auto max-w-lg w-full">
+                <div className="relative mx-auto w-36 h-36 flex items-center justify-center">
+                  {/* Glowing Animated Waves */}
+                  {voicePhase === 'listening' && (
+                    <>
+                      <div className="absolute inset-0 rounded-full bg-primary/30 animate-ping opacity-60" />
+                      <div className="absolute -inset-4 rounded-full bg-primary/10 animate-pulse opacity-40" />
+                    </>
+                  )}
+                  {voicePhase === 'thinking' && (
+                    <div className="absolute inset-0 rounded-full border-4 border-t-primary border-r-transparent border-b-secondary border-l-transparent animate-spin" />
+                  )}
+                  {voicePhase === 'speaking' && (
+                    <>
+                      <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping opacity-50" />
+                      <div className="absolute -inset-3 rounded-full bg-emerald-400/20 animate-pulse" />
+                    </>
+                  )}
+
+                  <div className={`w-28 h-28 rounded-full flex items-center justify-center text-4xl shadow-2xl transition-all ${
+                    voicePhase === 'listening'
+                      ? 'bg-gradient-to-tr from-primary to-purple-400 text-white shadow-primary/40'
+                      : voicePhase === 'thinking'
+                      ? 'bg-gradient-to-tr from-amber-500 to-orange-400 text-white shadow-amber-500/40 animate-pulse'
+                      : 'bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-emerald-500/40'
+                  }`}>
+                    {voicePhase === 'listening' ? '🎙️' : voicePhase === 'thinking' ? '🔮' : '✨'}
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <h2 className="text-[26px] font-bold font-serif">{voiceCallStatus}</h2>
-                  <p className="text-[14px] text-white/80 max-w-md mx-auto min-h-[40px]">
-                    {liveTranscript ? `"${liveTranscript}"` : 'Bina kisi darr ke baat karo bro — Sara is listening...'}
-                  </p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <h2 className="text-[24px] font-bold tracking-tight">{voiceCallStatus}</h2>
+                    {voicePhase === 'thinking' && <Loader2 size={18} className="animate-spin text-amber-300" />}
+                  </div>
+
+                  {/* Dynamic Subtitle / Live Speech Preview */}
+                  <div className="min-h-[64px] flex items-center justify-center px-4">
+                    {voicePhase === 'listening' && (
+                      <p className="text-[14px] text-white/90 bg-white/10 backdrop-blur-md rounded-2xl px-5 py-3 border border-white/15 max-w-md w-full">
+                        {liveTranscript ? `"${liveTranscript}"` : 'Bolo bhai, main sun rahi hoon... (Just start speaking)'}
+                      </p>
+                    )}
+                    {voicePhase === 'thinking' && (
+                      <p className="text-[13.5px] text-white/70 italic max-w-md">
+                        Sara is preparing a short response...
+                      </p>
+                    )}
+                    {voicePhase === 'speaking' && (
+                      <p className="text-[14.5px] font-medium text-emerald-200 bg-emerald-950/40 backdrop-blur-md rounded-2xl px-5 py-3 border border-emerald-400/30 max-w-md w-full leading-relaxed">
+                        "{saraSpeakingText || 'Speaking...'}"
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <button
-                onClick={stopVoiceCall}
-                className="py-3.5 px-8 rounded-full bg-danger text-white font-semibold text-[14.5px] flex items-center gap-2 shadow-card hover:bg-danger/90 transition-all cursor-pointer"
-              >
-                <PhoneOff size={18} />
-                <span>End Voice Call</span>
-              </button>
+              {/* Call Controls */}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={stopVoiceCall}
+                  className="py-3.5 px-8 rounded-full bg-danger/90 hover:bg-danger text-white font-semibold text-[14px] flex items-center gap-2.5 shadow-lg shadow-danger/30 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  <PhoneOff size={18} />
+                  <span>End Voice Call</span>
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
