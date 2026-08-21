@@ -89,7 +89,8 @@ async def chat(
     AI Companion chat endpoint.
     Every message passes through the Safety Shield before processing.
     """
-    await get_or_create_user(user_id, "Friend")
+    effective_user_id = (request.user_id and request.user_id.strip()) or user_id
+    await get_or_create_user(effective_user_id, "Friend")
 
     raw_messages = [m.model_dump() for m in request.messages]
     
@@ -133,14 +134,14 @@ async def chat(
 
             # Persist (don't store raw user message if it was redacted, store redacted form)
             await safe_insert(sessions_collection, {
-                "user_id": user_id,
+                "user_id": effective_user_id,
                 "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
                 "reply": reply_text,
                 "safety": safety_result,
                 "sentiment": sentiment_result,
                 "created_at": datetime.now(timezone.utc),
             })
-            await log_progress(user_id, "companion_message")
+            await log_progress(effective_user_id, "companion_message")
 
             return ChatResponse(
                 reply=reply_text,
@@ -181,14 +182,14 @@ async def chat(
 
     # Persist the turn
     await safe_insert(sessions_collection, {
-        "user_id": user_id,
+        "user_id": effective_user_id,
         "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
         "reply": reply,
         "safety": safety_result,
         "sentiment": sentiment_result,
         "created_at": datetime.now(timezone.utc),
     })
-    await log_progress(user_id, "companion_message")
+    await log_progress(effective_user_id, "companion_message")
 
     return ChatResponse(
         reply=reply,

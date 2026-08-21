@@ -136,8 +136,12 @@ const useChatStore = create((set, get) => ({
     });
 
     try {
+      const userId = useUserStore.getState().ensureUserId();
       const token = useUserStore.getState().token;
-      const headers = { "Content-Type": "application/json" };
+      const headers = { 
+        "Content-Type": "application/json",
+        "X-User-Id": userId,
+      };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
       const response = await fetch(`${API_BASE_URL}/api/chat`, {
@@ -148,6 +152,7 @@ const useChatStore = create((set, get) => ({
             role: msg.role,
             content: msg.content,
           })),
+          user_id: userId,
           is_voice_mode: isVoiceMode,
         }),
       });
