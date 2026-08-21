@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, Mic, MicOff, Volume2, VolumeX, Sparkles, Loader2, PhoneOff, Phone, Radio, Globe, Send, RefreshCw } from 'lucide-react';
+import { ArrowUp, Mic, MicOff, Volume2, VolumeX, Sparkles, Loader2, PhoneOff, Phone, Radio, Globe, Send, RefreshCw, Activity, Heart, Smile, ShieldCheck, TrendingUp } from 'lucide-react';
 import ChatBubble from '../components/ui/ChatBubble';
 import DisclaimerStrip from '../components/ui/DisclaimerStrip';
 import SaraAvatar from '../components/ui/SaraAvatar';
@@ -12,6 +12,7 @@ import { synthesizeSpeech } from '../utils/speechUtils';
  * Dedicated Separation:
  * - 💬 Chat Mode: Text conversation thread with message history & quick prompts.
  * - 📞 Voice Call Mode: Dedicated calling room with audio visualizer, mute option, language switch, & instant send.
+ * - 🧠 SaraSense™ Live Mood: Real-time sentiment, emotional intensity & Sara's adaptive coaching tone.
  */
 
 const STARTING_POINTS = [
@@ -84,6 +85,7 @@ export default function AICompanion() {
     companionLoading,
     sendCompanionMessage,
     fetchCompanionHistory,
+    lastSentiment,
   } = useChatStore();
 
   useEffect(() => {
@@ -411,6 +413,53 @@ export default function AICompanion() {
       handleSendText();
     }
   };
+
+  const getEmotionConfig = (emotion) => {
+    switch (emotion?.toLowerCase()) {
+      case 'joy':
+        return {
+          icon: '💛',
+          label: 'Joy & Confidence',
+          badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+          barColor: 'from-amber-400 to-yellow-500',
+          actionLabel: 'Encouraging progress & celebrating wins',
+        };
+      case 'fear':
+        return {
+          icon: '💜',
+          label: 'Hesitant / Anxious',
+          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+          barColor: 'from-purple-500 to-indigo-500',
+          actionLabel: 'Gentle support & pacing down speech',
+        };
+      case 'sadness':
+        return {
+          icon: '💙',
+          label: 'Low Mood / Reflective',
+          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+          barColor: 'from-blue-400 to-cyan-500',
+          actionLabel: 'Empathetic listening & comforting space',
+        };
+      case 'anger':
+        return {
+          icon: '🧡',
+          label: 'Frustrated / Overwhelmed',
+          badgeColor: 'bg-orange-50 text-orange-700 border-orange-200',
+          barColor: 'from-orange-500 to-rose-500',
+          actionLabel: 'Calm grounded de-escalation',
+        };
+      default:
+        return {
+          icon: '✨',
+          label: 'Calm & Engaged',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          barColor: 'from-emerald-400 to-teal-500',
+          actionLabel: 'Continuing natural conversational flow',
+        };
+    }
+  };
+
+  const currentEmotion = getEmotionConfig(lastSentiment?.emotion);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[calc(100vh-100px)]">
@@ -758,6 +807,78 @@ export default function AICompanion() {
           <p className="text-[12px] text-text-tertiary mt-3">
             Talk, type, or switch modes. Sara keeps the same thread.
           </p>
+        </div>
+
+        {/* ── SARASENSE™ LIVE SENTIMENT & MOOD CARD ── */}
+        <div className="bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-card border border-border-subtle transition-all">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                <Activity size={17} />
+              </div>
+              <div>
+                <h3 className="font-bold text-[15px] text-text-primary leading-tight">SaraSense™ Mood</h3>
+                <p className="text-[11.5px] text-text-tertiary">Real-time emotion & tone</p>
+              </div>
+            </div>
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+          </div>
+
+          {lastSentiment ? (
+            <div className="space-y-3.5">
+              {/* Emotion Badge */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-soft border border-border-subtle">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl">{currentEmotion.icon}</span>
+                  <div>
+                    <p className="font-bold text-[13.5px] text-text-primary">
+                      {currentEmotion.label}
+                    </p>
+                    <p className="text-[11px] text-text-tertiary capitalize">
+                      Sentiment: <span className="font-semibold text-text-secondary">{lastSentiment.sentiment || 'Neutral'}</span>
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-[11.5px] font-bold px-2.5 py-1 rounded-full border ${currentEmotion.badgeColor}`}>
+                  {lastSentiment.intensity || 75}% Intensity
+                </span>
+              </div>
+
+              {/* Intensity Progress Bar */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[11.5px] text-text-tertiary">
+                  <span>Emotional Resonance</span>
+                  <span className="font-semibold text-text-secondary">{lastSentiment.intensity || 75}%</span>
+                </div>
+                <div className="w-full h-2 bg-surface-soft rounded-full overflow-hidden border border-border-subtle/60">
+                  <div 
+                    className={`h-full rounded-full bg-gradient-to-r ${currentEmotion.barColor} transition-all duration-500`}
+                    style={{ width: `${lastSentiment.intensity || 75}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Sara's Adaptive Action */}
+              <div className="p-3 rounded-xl bg-primary/5 border border-primary/15 text-[12px] text-text-secondary flex items-start gap-2">
+                <Heart size={14} className="text-primary shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-primary">Sara's Tone: </span>
+                  <span>{currentEmotion.actionLabel}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="py-4 text-center space-y-1.5">
+              <Smile size={24} className="text-primary/40 mx-auto" />
+              <p className="text-[13px] font-medium text-text-secondary">Listening to your tone & mood</p>
+              <p className="text-[11.5px] text-text-tertiary max-w-[220px] mx-auto">
+                Send a message to see real-time emotion & sentiment analysis here.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Try a Starting Point Card */}
