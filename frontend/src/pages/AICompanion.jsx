@@ -462,12 +462,12 @@ export default function AICompanion() {
   const currentEmotion = getEmotionConfig(lastSentiment?.emotion);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[calc(100vh-100px)]">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)] min-h-[580px] max-h-[880px]">
       {/* ── MAIN INTERACTION AREA (8 cols) ── */}
       <div className="lg:col-span-8 flex flex-col h-full bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-card border border-border-subtle relative overflow-hidden">
         
         {/* Top Header Bar */}
-        <div className="flex items-center justify-between pb-4 border-b border-border-subtle mb-4">
+        <div className="flex items-center justify-between pb-4 border-b border-border-subtle mb-3 shrink-0">
           <div className="flex items-center gap-3">
             <SaraAvatar size="sm" emotion={companionLoading || callState === 'thinking' ? 'thinking' : 'happy'} />
             <div>
@@ -511,11 +511,11 @@ export default function AICompanion() {
         {/* ── TAB 1: CHAT MODE (TEXT & CASUAL CHAT) ── */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {activeTab === 'chat' && (
-          <div className="flex flex-col flex-1 h-[calc(100%-80px)]">
+          <div className="flex flex-col flex-1 h-[calc(100%-75px)] overflow-hidden">
             <DisclaimerStrip variant="chat" />
 
             {/* Messages Scroll Area */}
-            <div className="flex-1 overflow-y-auto py-4 px-2 space-y-4">
+            <div className="flex-1 overflow-y-auto py-3 px-2 space-y-4 custom-scrollbar">
               {companionMessages.length === 0 && (
                 <ChatBubble 
                   message="Hey, I'm Sara. I'm here with you. How are you feeling today?" 
@@ -545,8 +545,8 @@ export default function AICompanion() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Input Bar */}
-            <div className="pt-3 border-t border-border-subtle">
+            {/* Chat Input Bar (Pinned at Bottom) */}
+            <div className="pt-3 border-t border-border-subtle shrink-0">
               <div className="bg-white rounded-full p-2 pl-5 shadow-card border border-border-subtle hover:border-primary/40 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all flex items-center gap-3">
                 <input
                   type="text"
@@ -766,7 +766,7 @@ export default function AICompanion() {
       </div>
 
       {/* ── RIGHT SIDEBAR (4 cols) ── */}
-      <div className="lg:col-span-4 space-y-6">
+      <div className="lg:col-span-4 h-full overflow-y-auto pr-1 space-y-5 custom-scrollbar">
         {/* 3D Orb Visual Card + Start Voice with Sara */}
         <div className="bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-card border border-border-subtle relative overflow-hidden text-center flex flex-col items-center">
           <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-primary via-secondary to-primary-light flex items-center justify-center text-4xl shadow-card-lg mb-4">
