@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from database import get_or_create_user, log_progress
 from services.auth_service import get_current_user_id
+from config import ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -151,14 +152,14 @@ async def speech_synthesize(
     user_id: str = Depends(get_current_user_id),
 ):
     """Proxy Speech Synthesis requests to ElevenLabs Multilingual v2 for natural Hindi/Hinglish speech."""
-    api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+    api_key = (ELEVENLABS_API_KEY or os.getenv("ELEVENLABS_API_KEY", "")).strip()
     if not api_key:
         raise HTTPException(
             status_code=400,
             detail="ELEVENLABS_API_KEY is not configured in backend/.env"
         )
 
-    voice_id = req.voice_id or os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM").strip()
+    voice_id = req.voice_id or ELEVENLABS_VOICE_ID or "EXAVITQu4vr4xnSDxMaL"
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 
     headers = {
