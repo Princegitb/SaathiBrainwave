@@ -162,7 +162,7 @@ export default function AICompanion() {
               });
             }
           });
-        }, 1800);
+        }, 900);
       }
     };
 

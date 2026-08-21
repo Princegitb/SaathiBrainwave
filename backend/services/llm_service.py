@@ -214,7 +214,12 @@ async def get_companion_response(messages: list[dict], is_voice_mode: bool = Fal
 
     system_prompt = f"{COMPANION_SYSTEM_PROMPT}\n\n{rag_context_text}\n{repetition_guard_text}"
     if is_voice_mode:
-        system_prompt += "\n\nVOICE MODE ACTIVE: Do NOT include any emojis, pictographs, symbols, markdown formatting, or bullet points in your response text. Output plain conversational spoken words only."
+        system_prompt += "\n\nVOICE CALL MODE: Keep your reply strictly to 1 or 2 warm, short spoken sentences (maximum 15-20 words). Speak like a natural human friend on a quick phone call. Do NOT output emojis, symbols, markdown, or lists."
+
+    gen_config = genai.types.GenerationConfig(
+        max_output_tokens=80 if is_voice_mode else 160,
+        temperature=0.7,
+    )
 
     if GEMINI_API_KEY:
         history = []
@@ -227,6 +232,7 @@ async def get_companion_response(messages: list[dict], is_voice_mode: bool = Fal
                 model = genai.GenerativeModel(
                     model_name,
                     system_instruction=system_prompt,
+                    generation_config=gen_config,
                 )
                 chat = model.start_chat(history=history)
                 response = chat.send_message(user_input)
