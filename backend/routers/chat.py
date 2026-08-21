@@ -68,8 +68,12 @@ async def get_chat_history(
             )
             latest_session = await cursor.to_list(length=1)
             if latest_session:
-                history = latest_session[0].get("messages", [])
-                sentiment = latest_session[0].get("sentiment", {})
+                doc = latest_session[0]
+                history = list(doc.get("messages", []))
+                reply = doc.get("reply")
+                if reply and (not history or history[-1].get("role") != "assistant" or history[-1].get("content") != reply):
+                    history.append({"role": "assistant", "content": reply})
+                sentiment = doc.get("sentiment", {})
         except Exception as e:
             logger.warning("Failed to fetch chat history from DB: %s", e)
 
@@ -129,10 +133,11 @@ async def chat(
             )
             suggestions = ["Get helpline support", "Talk to a loved one"]
 
+            crisis_history = list(messages) + [{"role": "assistant", "content": reply_text}]
             # Persist (don't store raw user message if it was redacted, store redacted form)
             await safe_insert(sessions_collection, {
                 "user_id": effective_user_id,
-                "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
+                "messages": crisis_history,
                 "reply": reply_text,
                 "safety": safety_result,
                 "sentiment": sentiment_result,
@@ -181,10 +186,14 @@ async def chat(
     # Generate contextual suggestions
     suggestions = _generate_suggestions(user_message, reply)
 
-    # Persist the turn
+    # Persist the full turn including assistant reply
+    full_turn_messages = list(messages)
+    if not full_turn_messages or full_turn_messages[-1]["role"] != "assistant" or full_turn_messages[-1]["content"] != reply:
+        full_turn_messages.append({"role": "assistant", "content": reply})
+
     await safe_insert(sessions_collection, {
         "user_id": effective_user_id,
-        "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
+        "messages": full_turn_messages,
         "reply": reply,
         "safety": safety_result,
         "sentiment": sentiment_result,
