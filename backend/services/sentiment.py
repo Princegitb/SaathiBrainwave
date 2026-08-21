@@ -52,36 +52,60 @@ class SentimentRequest(BaseModel):
 
 
 def _fallback_sentiment(text: str) -> dict:
-    """Fast, non-blocking emotion analysis fallback."""
+    """Fast, non-blocking bilingual (Hindi, Hinglish, English) emotion analysis."""
     lower = text.lower()
-    if any(w in lower for w in ["happy", "great", "awesome", "good", "excited", "glad", "yay", "love", "confident"]):
+
+    # 1. Joy / Positive (English + Hindi/Hinglish)
+    joy_cues = [
+        "happy", "great", "awesome", "good", "excited", "glad", "yay", "love", "confident", "smile",
+        "khush", "mast", "badhiya", "achha", "accha", "mazza", "maza", "shandar", "zabardast", "badiya", "sukoon"
+    ]
+    if any(w in lower for w in joy_cues):
         return {
             "sentiment": "positive",
             "emotion": "joy",
-            "intensity": 80,
-            "confidence": 0.85,
+            "intensity": 85,
+            "confidence": 0.90,
             "suggested_action": "encourage_progress",
             "is_diagnostic": False,
         }
-    if any(w in lower for w in ["sad", "depressed", "down", "unhappy", "cry", "lonely", "hurt"]):
+
+    # 2. Sadness / Low mood
+    sad_cues = [
+        "sad", "depressed", "down", "unhappy", "cry", "lonely", "hurt", "hopeless", "tears",
+        "dukhi", "udas", "akela", "mann kharab", "rona", "dil toota", "dard", "bura lag raha", "udaas"
+    ]
+    if any(w in lower for w in sad_cues):
         return {
             "sentiment": "negative",
             "emotion": "sadness",
             "intensity": 75,
-            "confidence": 0.80,
+            "confidence": 0.85,
             "suggested_action": "gentle_support",
             "is_diagnostic": False,
         }
-    if any(w in lower for w in ["scared", "afraid", "nervous", "anxious", "worry", "fear", "panic"]):
+
+    # 3. Fear / Anxiety / Hesitation
+    fear_cues = [
+        "scared", "afraid", "nervous", "anxious", "worry", "fear", "panic", "hesitant", "stammer", "stutter",
+        "darr", "dar", "ghabrahat", "tension", "chinta", "fatt gayi", "fat gayi", "seham", "kaap"
+    ]
+    if any(w in lower for w in fear_cues):
         return {
             "sentiment": "negative",
             "emotion": "fear",
-            "intensity": 75,
-            "confidence": 0.80,
+            "intensity": 80,
+            "confidence": 0.88,
             "suggested_action": "gentle_support",
             "is_diagnostic": False,
         }
-    if any(w in lower for w in ["angry", "mad", "annoyed", "frustrated", "hate", "irritated"]):
+
+    # 4. Anger / Frustration
+    anger_cues = [
+        "angry", "mad", "annoyed", "frustrated", "hate", "irritated", "furious",
+        "gussa", "chidh", "pareshan", "bakwaas", "chutiya", "gadhe", "hate", "bura"
+    ]
+    if any(w in lower for w in anger_cues):
         return {
             "sentiment": "negative",
             "emotion": "anger",
@@ -90,11 +114,12 @@ def _fallback_sentiment(text: str) -> dict:
             "suggested_action": "calm_and_support",
             "is_diagnostic": False,
         }
+
     return {
         "sentiment": "neutral",
         "emotion": "neutral",
         "intensity": 50,
-        "confidence": 0.60,
+        "confidence": 0.70,
         "suggested_action": "continue_conversation",
         "is_diagnostic": False,
     }
