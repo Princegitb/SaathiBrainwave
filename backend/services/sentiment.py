@@ -2,7 +2,6 @@ from functools import lru_cache
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from transformers import pipeline
 
 
 router = APIRouter()
@@ -18,6 +17,7 @@ def get_emotion_classifier():
     The first request may take longer because the model
     needs to be downloaded and loaded.
     """
+    from transformers import pipeline
     return pipeline(
         "text-classification",
         model=MODEL_NAME,
