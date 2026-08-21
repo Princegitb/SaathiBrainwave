@@ -57,10 +57,11 @@ async def get_chat_history(
         sort=[("created_at", -1)]
     )
     if not latest_doc:
-        return {"messages": []}
+        return {"messages": [], "sentiment": None}
 
     messages = latest_doc.get("messages", [])
     reply = latest_doc.get("reply", "")
+    sentiment = latest_doc.get("sentiment", None)
 
     history = []
     for msg in messages:
@@ -76,7 +77,7 @@ async def get_chat_history(
                 "content": reply
             })
 
-    return {"messages": history}
+    return {"messages": history, "sentiment": sentiment}
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -136,6 +137,7 @@ async def chat(
                 "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
                 "reply": reply_text,
                 "safety": safety_result,
+                "sentiment": sentiment_result,
                 "created_at": datetime.now(timezone.utc),
             })
             await log_progress(user_id, "companion_message")
@@ -183,6 +185,7 @@ async def chat(
         "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
         "reply": reply,
         "safety": safety_result,
+        "sentiment": sentiment_result,
         "created_at": datetime.now(timezone.utc),
     })
     await log_progress(user_id, "companion_message")

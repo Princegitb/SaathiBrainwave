@@ -37,6 +37,7 @@ const useChatStore = create((set, get) => ({
       
       set({
         companionMessages: data.messages || [],
+        lastSentiment: data.sentiment || get().lastSentiment,
         companionLoading: false,
       });
     } catch (error) {
