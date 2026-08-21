@@ -5,7 +5,8 @@
  */
 
 const ELEVENLABS_API_KEY = import.meta.env?.VITE_ELEVENLABS_API_KEY || '';
-const ELEVENLABS_VOICE_ID = import.meta.env?.VITE_ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+const ELEVENLABS_VOICE_ID = import.meta.env?.VITE_ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL';
+
 
 // Cached browser voices
 let cachedVoices = [];
