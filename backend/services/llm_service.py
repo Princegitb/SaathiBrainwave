@@ -223,7 +223,7 @@ async def get_companion_response(messages: list[dict], is_voice_mode: bool = Fal
         system_prompt += "\n\nVOICE CALL MODE: Keep your reply strictly to 1 or 2 warm, short spoken sentences (maximum 15-20 words). Speak like a natural human friend on a quick phone call. Do NOT output emojis, symbols, markdown, or lists."
 
     gen_config = genai.types.GenerationConfig(
-        max_output_tokens=80 if is_voice_mode else 160,
+        max_output_tokens=250 if is_voice_mode else 450,
         temperature=0.7,
     )
 
