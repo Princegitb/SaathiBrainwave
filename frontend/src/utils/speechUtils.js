@@ -123,18 +123,26 @@ export async function synthesizeSpeech(text, onEndCallback) {
     console.warn('Cloud TTS failed, falling back to browser Web Speech API:', err);
   }
 
-  // 2. Browser Web Speech API with explicit Indian voice & hi-IN locale setting
+  // 2. Browser Web Speech API with natural Indian voice (avoid spelling letters)
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(cleanSpeechText);
-    utterance.rate = 0.95; // Slightly slower, calm cadence for clear speech
+    utterance.rate = 0.92;
     utterance.pitch = 1.0;
-    utterance.lang = 'hi-IN'; // Explicitly enforce Indian locale
+
+    // Detect if text contains Devanagari Hindi characters
+    const hasDevanagari = /[\u0900-\u097F]/.test(cleanSpeechText);
+
+    if (hasDevanagari) {
+      utterance.lang = 'hi-IN';
+    } else {
+      // For Latin Hinglish text, en-IN reads words smoothly without spelling letters
+      utterance.lang = 'en-IN';
+    }
 
     const indianVoice = getIndianVoice();
     if (indianVoice) {
       utterance.voice = indianVoice;
-      utterance.lang = indianVoice.lang;
     }
 
     if (onEndCallback) {
