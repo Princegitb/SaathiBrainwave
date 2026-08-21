@@ -1,0 +1,166 @@
+.communication-card {
+  width: 100%;
+  margin-top: 24px;
+  padding: 28px;
+  border-radius: 24px;
+  background: linear-gradient(
+    135deg,
+    #ffffff,
+    #f8f7ff
+  );
+  border: 1px solid rgba(120, 100, 180, 0.12);
+  box-shadow:
+    0 15px 45px rgba(60, 40, 100, 0.08);
+}
+
+
+.communication-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+
+.communication-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #7c5cff;
+}
+
+
+.communication-header h2 {
+  margin: 6px 0 4px;
+  font-size: 26px;
+  color: #202020;
+}
+
+
+.communication-header p {
+  margin: 0;
+  color: #777;
+  font-size: 14px;
+}
+
+
+.communication-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eee9ff;
+  font-size: 24px;
+}
+
+
+.communication-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+  gap: 14px;
+}
+
+
+.communication-metric {
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid #eee;
+}
+
+
+.metric-icon {
+  font-size: 22px;
+}
+
+
+.communication-metric small {
+  display: block;
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+
+.communication-metric strong {
+  display: block;
+  color: #242424;
+  font-size: 17px;
+}
+
+
+.communication-metric span:not(.metric-icon) {
+  display: block;
+  margin-top: 3px;
+  color: #777;
+  font-size: 12px;
+}
+
+
+.sara-feedback {
+  display: flex;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: 18px;
+  background: #f5f1ff;
+}
+
+
+.sara-avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e7ddff;
+}
+
+
+.sara-feedback span {
+  display: block;
+  font-weight: 700;
+  color: #6246c9;
+  margin-bottom: 6px;
+}
+
+
+.sara-feedback p {
+  margin: 5px 0;
+  color: #444;
+  line-height: 1.5;
+}
+
+
+.communication-loading {
+  padding: 30px;
+  text-align: center;
+  color: #777;
+}
+
+
+@media (max-width: 600px) {
+
+  .communication-card {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .communication-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .communication-header h2 {
+    font-size: 22px;
+  }
+
+}

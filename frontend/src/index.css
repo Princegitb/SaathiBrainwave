@@ -1,0 +1,204 @@
+
+/* ─── Tailwind layers ────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base styles ────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #F7F5FC 0%, #F1EEFA 100%);
+  background-attachment: fixed;
+  color: #1D163B;
+  overflow-y: auto;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ─── Card base ────────────────────────────────────────── */
+.card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(139, 92, 246, 0.08);
+  padding: 24px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.12);
+}
+
+.card-sm {
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.card-soft {
+  background: #F7F5FC;
+}
+
+/* ─── Typography scale (DESIGN_SYSTEM.md Section 3) ──── */
+h1, .text-h1, .font-serif {
+  font-family: 'Playfair Display', Georgia, Cambria, "Times New Roman", Times, serif !important;
+}
+
+.text-h1 {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #1D163B;
+}
+
+.text-h2 {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #1E1B2E;
+}
+
+.text-body {
+  font-size: 14.5px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #6B7280;
+}
+
+.text-stat {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: #1E1B2E;
+}
+
+.text-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Skeleton shimmer ────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(196, 181, 253, 0.15) 0%,
+    rgba(196, 181, 253, 0.35) 50%,
+    rgba(196, 181, 253, 0.15) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease infinite;
+  border-radius: 12px;
+}
+
+/* ─── Scrollbar styling ────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C4B5FD;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8B5CF6;
+}
+
+/* ─── Focus rings (a11y) ────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid #8B5CF6;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ─── Markdown chat bubble ─────────────────────────────── */
+.markdown-body p {
+  margin: 0 0 8px 0;
+}
+
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+  color: #1E1B2E;
+}
+
+.markdown-body em {
+  font-style: italic;
+}
+
+.markdown-body ul {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.markdown-body li {
+  margin: 4px 0;
+}
+
+/* ─── Prose-friendly tap targets ───────────────────────── */
+button,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ─── Disable raw input focus outlines (blue outline boxes) ── */
+input:focus, input:focus-visible, textarea:focus, textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================
+   SAATHI REFERENCE UI — visual language from the supplied
+   legacy/reference screens. Functionality remains unchanged.
+   ========================================================== */
+
+
+:root{
+  --s-bg-1:#e7e0f8; --s-bg-2:#cfc2ee; --s-bg-3:#bfb0e5;
+  --s-ink:#27233f; --s-muted:#8c83a8; --s-purple:#7350cf; --s-purple-2:#9b7ce5;
+  --s-card:rgba(250,248,255,.74); --s-border:rgba(255,255,255,.85);
+}
+html,body,#root{font-family:'DM Sans',system-ui,sans-serif!important;color:var(--s-ink)!important}
+body{background:linear-gradient(135deg,var(--s-bg-1) 0%,#d9d0f2 45%,var(--s-bg-2) 100%)!important;background-attachment:fixed!important}
+.saathi-shell{background:radial-gradient(circle at 48% 30%,rgba(255,255,255,.15),transparent 35%);}
+.saathi-header{height:96px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 4.2vw;position:sticky;top:0;z-index:50;background:rgba(224,217,244,.72);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.4)}
+.saathi-logo{display:flex;align-items:center;gap:12px;font-size:24px;letter-spacing:-.04em}.logo-mark{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#26213d;color:#fff;font-family:Georgia,serif;font-size:18px}
+.header-actions{justify-self:end;display:flex;gap:10px}.header-actions button{width:48px;height:48px;border:1px solid var(--s-border);border-radius:15px;background:rgba(255,255,255,.42);color:var(--s-ink);display:grid;place-items:center;cursor:pointer}
+.saathi-nav{display:flex;align-items:center;gap:2px;padding:4px 6px;border:1px solid rgba(255,255,255,.78);background:rgba(255,255,255,.34);border-radius:999px;box-shadow:0 8px 28px rgba(75,49,135,.06)}
+.saathi-nav a{color:#716b8a;text-decoration:none;font-size:14px;padding:11px 17px;border-radius:999px;white-space:nowrap}.saathi-nav a span.active{display:block;background:#fff;color:#3c3652;padding:11px 17px;margin:-11px -17px;border-radius:999px;box-shadow:0 2px 10px rgba(60,45,105,.06)}
+.saathi-main{max-width:1680px;margin:0 auto;padding:54px 4vw 80px}
+.eyebrow{font-size:12px;letter-spacing:.22em;color:#7350cf;font-weight:600;margin-bottom:10px}.wave{font-size:.65em;vertical-align:middle;display:inline-block;animation:wave 2.8s ease-in-out infinite}.saathi-dashboard h1,.saathi-dashboard h2,.saathi-dashboard h3{margin:0}.saathi-dashboard h1{font-family:'Playfair Display',Georgia,serif!important;font-size:76px;line-height:1.08;font-weight:500;letter-spacing:-.055em;color:#27233f}.saathi-dashboard p{color:var(--s-muted)}
+.dash-hero{display:grid;grid-template-columns:1.03fr .97fr;gap:6vw;align-items:center;margin-bottom:32px}.dash-copy p{font-size:16px;margin-top:25px}.hero-orb-card{height:322px;border:1px solid var(--s-border);border-radius:28px;background:rgba(250,249,255,.68);position:relative;overflow:hidden;display:grid;place-items:center;box-shadow:0 25px 70px rgba(84,59,145,.10)}.hero-orb{width:320px;height:320px;border-radius:50%;background:radial-gradient(circle at 48% 30%,#d8c6ff 0%,#a985ed 42%,#7650cb 100%);display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;text-align:center;box-shadow:0 15px 45px rgba(107,70,192,.25)}.hero-orb strong{font-family:'Playfair Display',Georgia,serif;font-size:38px;line-height:1.25;font-weight:500}.hero-orb span{font-size:13px;margin-top:15px}.orb-lines{position:absolute;inset:-80px -20px;border-top:1px solid rgba(255,255,255,.55);border-bottom:1px solid rgba(255,255,255,.55);transform:rotate(-17deg)}
+.dash-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px}.old-card{border:1px solid var(--s-border);background:var(--s-card);backdrop-filter:blur(14px);border-radius:24px;box-shadow:0 14px 45px rgba(78,57,135,.07)}.stat-box{min-height:160px;padding:26px;position:relative}.stat-box>span{font-size:14px;color:#8b82a7}.stat-box>svg{position:absolute;right:25px;top:26px;color:#8b7ca7}.stat-box b{display:block;font-size:38px;font-weight:400;margin-top:28px;letter-spacing:-.04em}.stat-box em{font-style:normal;font-size:14px}.stat-box small{display:block;color:#7656c9;font-size:13px;margin-top:8px}
+.dash-check-grid{display:grid;grid-template-columns:2.2fr 1fr;gap:18px;margin-bottom:34px}.feeling-card,.start-sara{min-height:128px;padding:30px;position:relative;text-align:left;color:inherit}.feeling-card h3,.start-sara h3{font-size:20px;font-weight:500}.feeling-card p,.start-sara p{font-size:14px;margin-top:5px}.accent-icon{position:absolute;right:28px;top:31px;color:#7350cf}.mood-row{display:flex;gap:10px;margin-top:20px}.mood-row button{border:0;background:rgba(255,255,255,.5);border-radius:50%;width:38px;height:38px;cursor:pointer}.start-sara{display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer}.start-sara svg{color:#332c4a}
+.dash-activity-grid{display:grid;grid-template-columns:2.2fr 1fr;gap:18px;margin-bottom:36px}.weekly-card,.upcoming-card{padding:25px;min-height:230px}.section-head{display:flex;justify-content:space-between;align-items:flex-start}.section-head h3{font-size:19px;font-weight:500}.section-head p{font-size:14px;margin-top:3px}.section-head>span{font-size:13px;color:#7350cf}.bars{height:145px;display:flex;align-items:flex-end;justify-content:space-around;padding:12px 25px 0}.bar-col{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:8px}.bar{width:30px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#9e7ae5,#7149c8)}.bar-col small{color:#8c83a8}.upcoming-card button{width:100%;border:1px solid rgba(220,213,240,.9);background:rgba(255,255,255,.3);height:48px;border-radius:14px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;padding:0 16px;color:#403a58;font-size:14px;cursor:pointer}.useful-section{margin-top:12px}.useful-head{margin-bottom:24px;align-items:flex-end}.useful-head h2{font-size:42px;font-weight:400;letter-spacing:-.04em}.useful-actions{display:flex;gap:10px}.voice-btn,.primary-btn{border:0;border-radius:14px;padding:14px 19px;display:flex;gap:8px;align-items:center;font-weight:500;cursor:pointer}.voice-btn{background:rgba(255,255,255,.7);color:#403a58;border:1px solid var(--s-border)}.primary-btn{background:#7350cf;color:#fff;box-shadow:0 12px 25px rgba(112,75,202,.18)}.scenario-row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.scenario-tile{padding:28px;text-align:left;min-height:170px;cursor:pointer;transition:.2s}.scenario-tile:hover{transform:translateY(-3px);background:rgba(255,255,255,.88)}.scenario-icon{font-size:28px}.scenario-tile h3{font-size:20px;margin-top:30px;font-weight:600}.scenario-tile p{font-size:14px;margin-top:7px}.connection-banner{margin-top:34px;padding:34px 38px;border:1px solid var(--s-border);border-radius:25px;background:linear-gradient(90deg,rgba(250,248,255,.72),rgba(225,213,250,.52));display:flex;justify-content:space-between;align-items:center;gap:30px}.connection-banner h2{font-size:38px;font-weight:400;letter-spacing:-.04em}.connection-banner p{margin-top:8px;font-size:14px}
+/* Make existing pages inherit the reference editorial treatment. */
+.saathi-main .card{background:var(--s-card)!important;border:1px solid var(--s-border)!important;box-shadow:0 14px 45px rgba(78,57,135,.07)!important;border-radius:24px!important}.saathi-main .text-body{color:var(--s-muted)!important}.saathi-main .text-h2{color:var(--s-ink)!important}.saathi-main .text-h1{font-family:'Playfair Display',Georgia,serif!important;font-weight:500!important;color:var(--s-ink)!important}.saathi-main .text-primary,.saathi-main .text-primary-dark{color:#7350cf!important}.saathi-main .bg-primary{background:#7350cf!important}.saathi-main .bg-white{background:rgba(255,255,255,.66)!important}.saathi-main .border-border-subtle{border-color:var(--s-border)!important}
+@keyframes wave{0%,100%{transform:rotate(0)}50%{transform:rotate(12deg)}}
+@media(max-width:1100px){.saathi-header{grid-template-columns:auto 1fr auto}.saathi-nav{justify-self:center}.saathi-nav a{padding:10px 10px;font-size:12px}.saathi-nav a span.active{padding:10px 10px;margin:-10px}.dash-hero{grid-template-columns:1fr}.hero-orb-card{height:280px}.saathi-dashboard h1{font-size:60px}.dash-activity-grid,.dash-check-grid{grid-template-columns:1fr}.connection-banner{flex-direction:column;align-items:flex-start}}
+@media(max-width:760px){.saathi-header{height:78px;padding:0 16px}.saathi-logo{font-size:20px}.logo-mark{width:34px;height:34px}.saathi-nav{display:none}.saathi-main{padding:32px 16px 70px}.saathi-dashboard h1{font-size:48px}.dash-stats,.scenario-row{grid-template-columns:1fr}.hero-orb-card{height:250px}.hero-orb{width:235px;height:235px}.hero-orb strong{font-size:28px}.useful-head{align-items:flex-start;flex-direction:column;gap:16px}.useful-head h2{font-size:34px}.connection-banner h2{font-size:29px}.stat-box{min-height:140px}}
