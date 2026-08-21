@@ -777,34 +777,9 @@ export default function AICompanion() {
             🔮
           </div>
 
-          <p className="text-[12px] font-semibold text-text-tertiary mb-3">
+          <p className="text-[12px] font-semibold text-text-tertiary mb-4">
             {activeTab === 'call' ? 'Voice Call Active' : 'Ready when you are'}
           </p>
-
-          {/* Quick Gender Mode Selector */}
-          <div className="flex items-center gap-1.5 p-1 bg-surface-soft rounded-full border border-border-subtle mb-4 w-full max-w-[260px] justify-between">
-            {[
-              { id: 'female', label: 'Female 👩' },
-              { id: 'male', label: 'Male 👨' },
-              { id: 'neutral', label: 'Neutral ✨' },
-            ].map((item) => {
-              const active = userGender === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setGender && setGender(item.id)}
-                  className={`flex-1 py-1 px-2 rounded-full text-[11.5px] font-medium transition-all cursor-pointer ${
-                    active
-                      ? 'bg-primary text-white font-semibold shadow-sm'
-                      : 'text-text-tertiary hover:text-text-primary'
-                  }`}
-                  title={`Sara will address you as ${item.label}`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
 
           <button
             onClick={() => {
