@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MessageSquare, Mic, ShieldCheck, Heart, Sparkles, Plus, 
-  X, Check, Search, SlidersHorizontal, UserCheck, Flame 
+  X, Check, Search, Flame 
 } from 'lucide-react';
-import PillChip from '../components/ui/PillChip';
 
 const DEFAULT_INTEREST_SUGGESTIONS = [
   { id: 'Technology', label: 'Technology 💻' },
@@ -109,7 +108,7 @@ export default function FindSaathi() {
   // User's selected interests (Multi-select)
   const [userInterests, setUserInterests] = useState(['Technology', 'Music']);
   const [customTagInput, setCustomTagInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isAddingCustom, setIsAddingCustom] = useState(false);
 
   // Toggle interest selection
   const toggleInterest = (interestName) => {
@@ -124,12 +123,16 @@ export default function FindSaathi() {
   const handleAddCustomInterest = (e) => {
     e?.preventDefault();
     const clean = customTagInput.trim();
-    if (!clean) return;
+    if (!clean) {
+      setIsAddingCustom(false);
+      return;
+    }
     const formatted = clean.charAt(0).toUpperCase() + clean.slice(1);
     if (!userInterests.includes(formatted)) {
       setUserInterests([...userInterests, formatted]);
     }
     setCustomTagInput('');
+    setIsAddingCustom(false);
   };
 
   // Dynamic Peer Matching & Compatibility Calculation Engine
@@ -153,26 +156,16 @@ export default function FindSaathi() {
         matchingCount: commonTags.length,
         isHighMatch: commonTags.length >= 2,
       };
-    })
-      .filter((peer) => {
-        if (!searchQuery) return true;
-        const q = searchQuery.toLowerCase();
-        return (
-          peer.alias.toLowerCase().includes(q) ||
-          peer.goal.toLowerCase().includes(q) ||
-          peer.tags.some((t) => t.toLowerCase().includes(q))
-        );
-      })
-      .sort((a, b) => b.calculatedScore - a.calculatedScore);
-  }, [userInterests, searchQuery]);
+    }).sort((a, b) => b.calculatedScore - a.calculatedScore);
+  }, [userInterests]);
 
   const startChat = (saathiId) => {
     navigate(`/peer/chat/${saathiId}`);
   };
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* ── HERO SECTION ── */}
+    <div className="space-y-7 pb-16">
+      {/* ── HERO SECTION matching Image 4 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
         {/* Left Hero Text */}
         <motion.div
@@ -191,7 +184,7 @@ export default function FindSaathi() {
           </p>
         </motion.div>
 
-        {/* Right Hero Visual Card */}
+        {/* Right Hero Visual Card matching Image 4 */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -201,7 +194,7 @@ export default function FindSaathi() {
             {/* Dynamic floating badges reflecting user's selected interests */}
             <div className="absolute top-4 left-6 bg-white/85 backdrop-blur-md px-3.5 py-1.5 rounded-full text-[12px] font-bold text-primary shadow-card border border-border-subtle flex items-center gap-1.5">
               <Sparkles size={13} className="text-amber-500" />
-              <span>{matchedPeers[0]?.calculatedScore || 82}% top match</span>
+              <span>{matchedPeers[0]?.calculatedScore || 82}% compatible</span>
             </div>
 
             <div className="absolute top-10 right-8 bg-white/85 backdrop-blur-md px-3.5 py-1.5 rounded-full text-[12px] text-text-primary shadow-card border border-border-subtle font-medium">
@@ -209,7 +202,7 @@ export default function FindSaathi() {
             </div>
 
             <div className="absolute bottom-6 left-12 bg-white/85 backdrop-blur-md px-3.5 py-1.5 rounded-full text-[12px] text-text-primary shadow-card border border-border-subtle font-medium">
-              {userInterests.length} Selected Interests
+              {userInterests.length > 0 ? `${userInterests.length} Selected Interests` : 'Shared interests'}
             </div>
 
             {/* 3D Orb visual */}
@@ -220,139 +213,98 @@ export default function FindSaathi() {
         </motion.div>
       </div>
 
-      {/* ── INTERACTIVE INTEREST SELECTOR BAR ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="card p-6 bg-white/85 backdrop-blur-md rounded-3xl border border-border-subtle shadow-card space-y-4"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-subtle">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-              <SlidersHorizontal size={18} />
-            </div>
-            <div>
-              <h3 className="font-bold text-[16px] text-text-primary">
-                Select Your Interests & Topics
-              </h3>
-              <p className="text-[12.5px] text-text-tertiary">
-                Choose the topics you enjoy so we match you with compatible peers in real time
-              </p>
-            </div>
+      {/* ── THOUGHTFUL MATCHES SECTION (Compact Single-Row Interest Filter) ── */}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[24px] font-bold text-text-primary">Thoughtful matches</h2>
+            <p className="text-body text-[13.5px]">A few people who might feel easy to talk to</p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-semibold text-text-secondary">
-              Active Filters: <strong className="text-primary">{userInterests.length}</strong>
-            </span>
-            {userInterests.length > 0 && (
-              <button
-                onClick={() => setUserInterests([])}
-                className="text-[11.5px] text-text-tertiary hover:text-danger underline transition-colors cursor-pointer"
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-        </div>
+          {/* Compact Interest Filter Bar (No big box) */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full md:max-w-[580px] custom-scrollbar">
+            <button
+              onClick={() => setUserInterests([])}
+              className={`py-1.5 px-3 rounded-full text-[12px] font-medium transition-all whitespace-nowrap cursor-pointer ${
+                userInterests.length === 0
+                  ? 'bg-primary text-white font-semibold shadow-sm'
+                  : 'bg-white/80 text-text-secondary hover:bg-white hover:text-text-primary border border-border-subtle'
+              }`}
+            >
+              All
+            </button>
 
-        {/* Selected & Suggested Interest Chips */}
-        <div className="space-y-3 pt-1">
-          <div className="flex flex-wrap items-center gap-2">
             {DEFAULT_INTEREST_SUGGESTIONS.map((item) => {
               const active = userInterests.includes(item.id);
               return (
                 <button
                   key={item.id}
                   onClick={() => toggleInterest(item.id)}
-                  className={`py-1.5 px-3.5 rounded-full text-[13px] font-medium transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                  className={`py-1.5 px-3 rounded-full text-[12px] font-medium transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
                     active
-                      ? 'bg-primary text-white font-semibold ring-2 ring-primary/30 shadow-md scale-105'
-                      : 'bg-surface-soft text-text-secondary hover:bg-white hover:text-text-primary border border-border-subtle'
+                      ? 'bg-primary text-white font-semibold shadow-sm'
+                      : 'bg-white/80 text-text-secondary hover:bg-white hover:text-text-primary border border-border-subtle'
                   }`}
                 >
-                  {active && <Check size={13} className="stroke-[3]" />}
+                  {active && <Check size={11} className="stroke-[3]" />}
                   <span>{item.label}</span>
                 </button>
               );
             })}
 
-            {/* Any custom added tags */}
+            {/* Custom added tag pills */}
             {userInterests
               .filter((ui) => !DEFAULT_INTEREST_SUGGESTIONS.some((s) => s.id === ui))
               .map((customTag) => (
                 <span
                   key={customTag}
-                  className="py-1.5 px-3.5 rounded-full text-[13px] font-semibold bg-primary text-white ring-2 ring-primary/30 shadow-md flex items-center gap-1.5"
+                  className="py-1.5 px-2.5 rounded-full text-[12px] font-semibold bg-primary text-white shadow-sm flex items-center gap-1 whitespace-nowrap"
                 >
-                  <Check size={13} className="stroke-[3]" />
+                  <Check size={11} className="stroke-[3]" />
                   <span>{customTag}</span>
                   <button
                     onClick={() => toggleInterest(customTag)}
-                    className="hover:text-amber-200 transition-colors cursor-pointer ml-0.5"
+                    className="hover:text-amber-200 cursor-pointer ml-0.5"
                   >
-                    <X size={13} />
+                    <X size={11} />
                   </button>
                 </span>
               ))}
-          </div>
 
-          {/* Add Custom Tag Form */}
-          <form
-            onSubmit={handleAddCustomInterest}
-            className="flex items-center gap-2 max-w-sm pt-2"
-          >
-            <div className="flex-1 bg-surface-soft border border-border-subtle rounded-2xl px-3.5 py-2 flex items-center gap-2 focus-within:border-primary focus-within:bg-white transition-all">
-              <Plus size={16} className="text-text-tertiary" />
-              <input
-                type="text"
-                value={customTagInput}
-                onChange={(e) => setCustomTagInput(e.target.value)}
-                placeholder="Add custom topic (e.g. AI, Anime, Chess)..."
-                className="w-full bg-transparent text-[13px] text-text-primary outline-none placeholder-text-tertiary"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!customTagInput.trim()}
-              className="py-2 px-4 rounded-2xl bg-primary text-white text-[13px] font-semibold hover:bg-primary-dark disabled:opacity-40 transition-all cursor-pointer shadow-sm"
-            >
-              Add
-            </button>
-          </form>
-        </div>
-      </motion.div>
-
-      {/* ── THOUGHTFUL MATCHES SECTION ── */}
-      <div className="space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-[24px] font-bold text-text-primary">Thoughtful Matches</h2>
-              <span className="text-[12px] font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
-                {matchedPeers.length} Peers Available
-              </span>
-            </div>
-            <p className="text-body text-[13.5px]">
-              Ranked dynamically by compatibility with your selected interests
-            </p>
-          </div>
-
-          {/* Search Peer Input */}
-          <div className="w-full sm:w-64 bg-white/80 backdrop-blur-md rounded-2xl px-3.5 py-2 border border-border-subtle flex items-center gap-2 focus-within:border-primary shadow-sm">
-            <Search size={16} className="text-text-tertiary" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by topic, goal..."
-              className="w-full bg-transparent text-[13px] text-text-primary outline-none"
-            />
+            {/* Mini Inline Custom Input */}
+            {isAddingCustom ? (
+              <form onSubmit={handleAddCustomInterest} className="flex items-center gap-1">
+                <input
+                  type="text"
+                  autoFocus
+                  value={customTagInput}
+                  onChange={(e) => setCustomTagInput(e.target.value)}
+                  onBlur={() => !customTagInput && setIsAddingCustom(false)}
+                  placeholder="Type topic..."
+                  className="py-1 px-2.5 bg-white border border-primary rounded-full text-[11.5px] outline-none w-28 text-text-primary shadow-sm"
+                />
+                <button
+                  type="submit"
+                  className="py-1 px-2.5 bg-primary text-white rounded-full text-[11.5px] font-semibold cursor-pointer shadow-sm"
+                >
+                  Add
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => setIsAddingCustom(true)}
+                className="py-1.5 px-3 rounded-full text-[12px] font-medium bg-white/80 hover:bg-white text-text-tertiary hover:text-text-primary border border-dashed border-border-subtle transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer shadow-sm"
+                title="Add custom interest tag"
+              >
+                <Plus size={13} />
+                <span>Add</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 3+ Match Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* 3+ Match Cards Grid matching Image 4 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-1">
           <AnimatePresence>
             {matchedPeers.map((match, i) => (
               <motion.div
@@ -391,7 +343,7 @@ export default function FindSaathi() {
                     <span className="text-[24px] font-bold text-primary leading-none">
                       {match.calculatedScore}%
                     </span>
-                    <span className="text-[12px] text-text-tertiary font-medium">compatibility</span>
+                    <span className="text-[12px] text-text-tertiary font-medium">compatible</span>
                   </div>
 
                   {/* Tag Pills (Highlight Matching Tags) */}
@@ -450,7 +402,7 @@ export default function FindSaathi() {
         </div>
       </div>
 
-      {/* Footer Security Notice */}
+      {/* Footer Security Notice matching Image 4 */}
       <div className="flex items-center justify-center gap-2 p-3.5 bg-surface-soft/80 rounded-2xl border border-border-subtle text-[12.5px] text-text-tertiary">
         <ShieldCheck size={16} className="text-primary" />
         <span>Anonymous by design. You can report, block, or leave a conversation at any time.</span>
