@@ -150,16 +150,15 @@ async def speech_synthesize(
     req: SynthesizeRequest,
     user_id: str = Depends(get_current_user_id),
 ):
-    """Proxy Speech Synthesis requests to ElevenLabs using private server API key."""
-    api_key = os.getenv("ELEVENLABS_API_KEY")
+    """Proxy Speech Synthesis requests to ElevenLabs Multilingual v2 for natural Hindi/Hinglish speech."""
+    api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
     if not api_key:
-        return StreamingResponse(
-            iter([""]),
-            status_code=500,
-            headers={"X-Error": "ElevenLabs API Key not configured on server"}
+        raise HTTPException(
+            status_code=400,
+            detail="ELEVENLABS_API_KEY is not configured in backend/.env"
         )
 
-    voice_id = req.voice_id or "21m00Tcm4TlvDq8ikWAM"  # Default Rachel voice
+    voice_id = req.voice_id or os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM").strip()
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 
     headers = {
@@ -170,19 +169,22 @@ async def speech_synthesize(
 
     payload = {
         "text": req.text,
-        "model_id": "eleven_monolingual_v1",
+        "model_id": "eleven_multilingual_v2",  # Natural Hindi, Hinglish & English support
         "voice_settings": {
-            "stability": 0.5,
-            "similarity_boost": 0.5,
-        }
+            "stability": 0.55,
+            "similarity_boost": 0.75,
+            "style": 0.15,
+            "use_speaker_boost": True,
+        },
     }
 
     async def audio_stream():
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 async with client.stream("POST", url, headers=headers, json=payload) as response:
                     if response.status_code != 200:
-                        logger.error(f"ElevenLabs TTS failed with status {response.status_code}")
+                        error_detail = await response.aread()
+                        logger.error(f"ElevenLabs TTS failed ({response.status_code}): {error_detail.decode('utf-8', errors='ignore')}")
                         yield b""
                         return
                     async for chunk in response.aiter_bytes():
@@ -192,3 +194,4 @@ async def speech_synthesize(
                 yield b""
 
     return StreamingResponse(audio_stream(), media_type="audio/mpeg")
+
