@@ -223,55 +223,7 @@ export default function FindSaathi() {
 
           {/* Compact Interest Filter Bar (No big box) */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full md:max-w-[580px] custom-scrollbar">
-            <button
-              onClick={() => setUserInterests([])}
-              className={`py-1.5 px-3 rounded-full text-[12px] font-medium transition-all whitespace-nowrap cursor-pointer ${
-                userInterests.length === 0
-                  ? 'bg-primary text-white font-semibold shadow-sm'
-                  : 'bg-white/80 text-text-secondary hover:bg-white hover:text-text-primary border border-border-subtle'
-              }`}
-            >
-              All
-            </button>
-
-            {DEFAULT_INTEREST_SUGGESTIONS.map((item) => {
-              const active = userInterests.includes(item.id);
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => toggleInterest(item.id)}
-                  className={`py-1.5 px-3 rounded-full text-[12px] font-medium transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
-                    active
-                      ? 'bg-primary text-white font-semibold shadow-sm'
-                      : 'bg-white/80 text-text-secondary hover:bg-white hover:text-text-primary border border-border-subtle'
-                  }`}
-                >
-                  {active && <Check size={11} className="stroke-[3]" />}
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-
-            {/* Custom added tag pills */}
-            {userInterests
-              .filter((ui) => !DEFAULT_INTEREST_SUGGESTIONS.some((s) => s.id === ui))
-              .map((customTag) => (
-                <span
-                  key={customTag}
-                  className="py-1.5 px-2.5 rounded-full text-[12px] font-semibold bg-primary text-white shadow-sm flex items-center gap-1 whitespace-nowrap"
-                >
-                  <Check size={11} className="stroke-[3]" />
-                  <span>{customTag}</span>
-                  <button
-                    onClick={() => toggleInterest(customTag)}
-                    className="hover:text-amber-200 cursor-pointer ml-0.5"
-                  >
-                    <X size={11} />
-                  </button>
-                </span>
-              ))}
-
-            {/* Mini Inline Custom Input */}
+            {/* Mini Inline Custom Input at Beginning */}
             {isAddingCustom ? (
               <form onSubmit={handleAddCustomInterest} className="flex items-center gap-1">
                 <input
@@ -293,13 +245,61 @@ export default function FindSaathi() {
             ) : (
               <button
                 onClick={() => setIsAddingCustom(true)}
-                className="py-1.5 px-3 rounded-full text-[12px] font-medium bg-white/80 hover:bg-white text-text-tertiary hover:text-text-primary border border-dashed border-border-subtle transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer shadow-sm"
+                className="py-1.5 px-3 rounded-full text-[12px] font-medium bg-white/80 hover:bg-white text-primary hover:text-primary-dark border border-dashed border-primary/40 transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer shadow-sm"
                 title="Add custom interest tag"
               >
                 <Plus size={13} />
                 <span>Add</span>
               </button>
             )}
+
+            <button
+              onClick={() => setUserInterests([])}
+              className={`py-1.5 px-3 rounded-full text-[12px] font-medium transition-all whitespace-nowrap cursor-pointer ${
+                userInterests.length === 0
+                  ? 'bg-primary text-white font-semibold shadow-sm'
+                  : 'bg-white/80 text-text-secondary hover:bg-white hover:text-text-primary border border-border-subtle'
+              }`}
+            >
+              All
+            </button>
+
+            {/* Custom added tag pills */}
+            {userInterests
+              .filter((ui) => !DEFAULT_INTEREST_SUGGESTIONS.some((s) => s.id === ui))
+              .map((customTag) => (
+                <span
+                  key={customTag}
+                  className="py-1.5 px-2.5 rounded-full text-[12px] font-semibold bg-primary text-white shadow-sm flex items-center gap-1 whitespace-nowrap"
+                >
+                  <Check size={11} className="stroke-[3]" />
+                  <span>{customTag}</span>
+                  <button
+                    onClick={() => toggleInterest(customTag)}
+                    className="hover:text-amber-200 cursor-pointer ml-0.5"
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+
+            {DEFAULT_INTEREST_SUGGESTIONS.map((item) => {
+              const active = userInterests.includes(item.id);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => toggleInterest(item.id)}
+                  className={`py-1.5 px-3 rounded-full text-[12px] font-medium transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                    active
+                      ? 'bg-primary text-white font-semibold shadow-sm'
+                      : 'bg-white/80 text-text-secondary hover:bg-white hover:text-text-primary border border-border-subtle'
+                  }`}
+                >
+                  {active && <Check size={11} className="stroke-[3]" />}
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
