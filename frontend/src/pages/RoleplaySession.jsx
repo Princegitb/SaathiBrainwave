@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, ArrowLeft, Star, Target, Mic, ArrowUp } from 'lucide-react';
+import { Loader2, ArrowLeft, Star, Target, Mic, ArrowUp, Volume2, VolumeX } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ChatBubble from '../components/ui/ChatBubble';
