@@ -417,10 +417,17 @@ const useChatStore = create((set, get) => ({
         roleplayCommunicationStats: {
           words: data.total_words,
           fillerWords: data.filler_words,
+          fillerWordRate: data.filler_word_rate,
           turns: data.total_turns,
+          averageWordsPerTurn: data.average_words_per_turn,
+          speakingPace: data.speaking_pace,
+          paceDots: data.pace_dots,
+          pauses: data.pauses,
+          pauseDots: data.pause_dots,
           clarityScore: data.clarity_score,
           confidenceScore: data.confidence_score,
           communicationScore: data.communication_score,
+          saraQuote: data.sara_quote,
         },
         roleplayEnding: false,
       });
