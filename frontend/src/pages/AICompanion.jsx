@@ -698,7 +698,7 @@ export default function AICompanion() {
                   {callState === 'listening' && !isMuted && (
                     <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/15 max-w-md w-full text-center space-y-2">
                       <p className="text-[14.5px] text-white/95 font-medium min-h-[22px]">
-                        {userSpeechCaption ? `"${userSpeechCaption}"` : 'Bolo bhai, main sun rahi hoon... (Start speaking)'}
+                        {userSpeechCaption ? `"${userSpeechCaption}"` : 'Main sun rahi hoon... (Start speaking freely)'}
                       </p>
                       {userSpeechCaption && (
                         <div className="flex items-center justify-center gap-2 pt-1">
@@ -773,9 +773,35 @@ export default function AICompanion() {
             🔮
           </div>
 
-          <p className="text-[12px] font-semibold text-text-tertiary mb-4">
+          <p className="text-[12px] font-semibold text-text-tertiary mb-3">
             {activeTab === 'call' ? 'Voice Call Active' : 'Ready when you are'}
           </p>
+
+          {/* Quick Gender Mode Selector */}
+          <div className="flex items-center gap-1.5 p-1 bg-surface-soft rounded-full border border-border-subtle mb-4 w-full max-w-[260px] justify-between">
+            {[
+              { id: 'female', label: 'Female 👩' },
+              { id: 'male', label: 'Male 👨' },
+              { id: 'neutral', label: 'Neutral ✨' },
+            ].map((item) => {
+              const currentGender = useUserStore((s) => s.gender) || 'female';
+              const active = currentGender === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => useUserStore.getState().setGender(item.id)}
+                  className={`flex-1 py-1 px-2 rounded-full text-[11.5px] font-medium transition-all cursor-pointer ${
+                    active
+                      ? 'bg-primary text-white font-semibold shadow-sm'
+                      : 'text-text-tertiary hover:text-text-primary'
+                  }`}
+                  title={`Sara will address you as ${item.label}`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
 
           <button
             onClick={() => {

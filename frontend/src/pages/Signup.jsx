@@ -19,6 +19,7 @@ export default function Signup() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [gender, setGender] = useState('female');
   const [selectedGoals, setSelectedGoals] = useState(['Stammering & Speech Practice']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -39,7 +40,7 @@ export default function Signup() {
     setError(null);
 
     try {
-      await signup(email, password, displayName, selectedGoals);
+      await signup(email, password, displayName, selectedGoals, gender);
       navigate('/');
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
@@ -104,6 +105,36 @@ export default function Signup() {
                 placeholder="you@example.com"
                 className="flex-1 bg-transparent text-[14px] text-text-primary outline-none"
               />
+            </div>
+          </div>
+
+          {/* Gender / How Sara should address you */}
+          <div>
+            <label className="text-[12px] font-semibold text-text-secondary uppercase tracking-wider">How should Sara address you?</label>
+            <div className="grid grid-cols-3 gap-2 mt-1.5">
+              {[
+                { id: 'female', label: 'Female', icon: '👩', sub: 'She / Her' },
+                { id: 'male', label: 'Male', icon: '👨', sub: 'He / Him' },
+                { id: 'neutral', label: 'Neutral', icon: '✨', sub: 'They / Them' },
+              ].map((item) => {
+                const active = gender === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setGender(item.id)}
+                    className={`py-2 px-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                      active
+                        ? 'bg-primary/10 border-primary text-primary font-semibold ring-1 ring-primary/30 shadow-sm'
+                        : 'bg-surface-soft border-border-subtle text-text-secondary hover:bg-white'
+                    }`}
+                  >
+                    <div className="text-[16px] mb-0.5">{item.icon}</div>
+                    <div className="text-[12.5px] font-medium leading-tight">{item.label}</div>
+                    <div className="text-[10.5px] text-text-tertiary">{item.sub}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

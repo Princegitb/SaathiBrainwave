@@ -7,7 +7,7 @@ persistence to MongoDB, and redaction of contact info.
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Header, Depends
+from fastapi import APIRouter, Header, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -16,6 +16,7 @@ from database import (
     log_progress,
     safe_insert,
     sessions_collection,
+    ping_db,
 )
 from services.llm_service import get_companion_response, stream_companion_response
 from services.safety_shield import check_message, redact_text
@@ -36,6 +37,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     user_id: str | None = None
+    gender: str | None = None
     is_voice_mode: bool = False
 
 
@@ -50,32 +52,26 @@ class ChatResponse(BaseModel):
 @router.get("/chat/history")
 async def get_chat_history(
     user_id: str = Depends(get_current_user_id),
+    limit: int = 50,
 ):
-    """Retrieve SARA companion chat history for the user from the database."""
-    latest_doc = await sessions_collection.find_one(
-        {"user_id": user_id},
-        sort=[("created_at", -1)]
-    )
-    if not latest_doc:
-        return {"messages": [], "sentiment": None}
-
-    messages = latest_doc.get("messages", [])
-    reply = latest_doc.get("reply", "")
-    sentiment = latest_doc.get("sentiment", None)
-
+    """
+    Retrieve stored conversation history for the current user.
+    """
     history = []
-    for msg in messages:
-        history.append({
-            "role": msg.get("role"),
-            "content": msg.get("content")
-        })
-
-    if reply:
-        if not history or history[-1]["role"] != "assistant" or history[-1]["content"] != reply:
-            history.append({
-                "role": "assistant",
-                "content": reply
-            })
+    sentiment = {}
+    if await ping_db():
+        try:
+            cursor = (
+                sessions_collection.find({"user_id": user_id})
+                .sort("created_at", -1)
+                .limit(1)
+            )
+            latest_session = await cursor.to_list(length=1)
+            if latest_session:
+                history = latest_session[0].get("messages", [])
+                sentiment = latest_session[0].get("sentiment", {})
+        except Exception as e:
+            logger.warning("Failed to fetch chat history from DB: %s", e)
 
     return {"messages": history, "sentiment": sentiment}
 
@@ -90,7 +86,8 @@ async def chat(
     Every message passes through the Safety Shield before processing.
     """
     effective_user_id = (request.user_id and request.user_id.strip()) or user_id
-    await get_or_create_user(effective_user_id, "Friend")
+    user_profile = await get_or_create_user(effective_user_id, "Friend")
+    user_gender = request.gender or user_profile.get("gender") or "neutral"
 
     raw_messages = [m.model_dump() for m in request.messages]
     
@@ -99,38 +96,38 @@ async def chat(
     for msg in raw_messages:
         if not messages:
             messages.append(msg)
-        else:
-            prev = messages[-1]
-            if not (prev["role"] == msg["role"] and prev["content"].strip() == msg["content"].strip()):
-                messages.append(msg)
+        elif messages[-1]["role"] != msg["role"] or messages[-1]["content"] != msg["content"]:
+            messages.append(msg)
 
-    user_message = messages[-1]["content"] if messages else ""
+    if not messages:
+        raise HTTPException(status_code=400, detail="No messages provided")
 
-    # First — redact any contact info in the user message before passing it anywhere.
-    redacted_text = redact_text(user_message)
-    redacted = redacted_text != user_message
+    user_message = messages[-1]["content"]
 
-    # Use the redacted text for everything downstream.
-    messages[-1]["content"] = redacted_text
-    user_message = redacted_text
+    # Redact PII (pass through before safety & LLM)
+    redacted_message = redact_text(user_message)
+    redacted = redacted_message != user_message
+    if redacted:
+        messages[-1]["content"] = redacted_message
 
-    # Safety Shield: check the (already-redacted) message
-    safety_result = await check_message(user_message, deep_check=True)
-    sentiment_result = analyze_sentiment(user_message)
+    # Safety Shield Check (Deep Check)
+    safety_result = await check_message(redacted_message, deep_check=True)
+
+    # Sentiment analysis with DistilRoBERTa Transformer + Lexicon
+    sentiment_result = analyze_sentiment(redacted_message)
 
     if not safety_result["is_safe"]:
-        if safety_result.get("crisis"):
+        # Intercept unsafe input
+        if safety_result.get("crisis") or safety_result["action"] == "crisis_redirect":
             reply_text = (
-                "It sounds like you might be going through something difficult right now. "
-                "You're not alone, and there are people who can help. 💛\n\n"
-                "Would you like to:\n"
-                "• Talk to a trusted person in your life\n"
-                "• Find professional support resources\n"
-                "• Continue our conversation\n\n"
-                "Remember: SAATHI is here to support your practice, "
-                "and real help is always available when you need it."
+                "I hear how much pain you're in, and I care about your safety. "
+                "Please reach out to someone who can help right now:\n\n"
+                "**Tele-MANAS:** 14416 (24/7 Toll-Free, India)\n"
+                "**KIRAN:** 1800-599-0019 (Mental Health Helpline)\n"
+                "**Vandrevala Foundation:** +91 9999 666 555\n\n"
+                "You don't have to carry this alone. Please talk to someone you trust. 💛"
             )
-            suggestions = ["Find support resources", "Continue talking"]
+            suggestions = ["Get helpline support", "Talk to a loved one"]
 
             # Persist (don't store raw user message if it was redacted, store redacted form)
             await safe_insert(sessions_collection, {
@@ -163,9 +160,13 @@ async def chat(
                 sentiment=sentiment_result,
             )
 
-    # Get AI response
+    # Get AI response with gender context
     try:
-        reply = await get_companion_response(messages, is_voice_mode=request.is_voice_mode)
+        reply = await get_companion_response(
+            messages, 
+            is_voice_mode=request.is_voice_mode, 
+            gender=user_gender
+        )
     except Exception as e:
         logger.exception("AI response failed: %s", e)
         reply = (

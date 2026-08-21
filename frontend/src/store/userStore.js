@@ -14,12 +14,14 @@ const useUserStore = create(
       userId: null,
       email: '',
       displayName: '',
+      gender: 'neutral', // 'female' | 'male' | 'neutral'
       goals: [],
       isAuthenticated: false,
       preferences: {
         preferred_format: 'text',
         session_length: 'short',
         goal_tags: [],
+        gender: 'neutral',
       },
       onboarded: false,
 
@@ -30,6 +32,10 @@ const useUserStore = create(
           set({ userId });
         }
         return userId;
+      },
+
+      setGender: (gender) => {
+        set({ gender });
       },
 
       login: async (email, password) => {
@@ -53,6 +59,7 @@ const useUserStore = create(
           userId: data.user_id,
           email: data.email,
           displayName: data.display_name,
+          gender: data.gender || 'neutral',
           goals: data.goals || [],
           isAuthenticated: true,
           onboarded: true,
@@ -61,7 +68,7 @@ const useUserStore = create(
         return data;
       },
 
-      signup: async (email, password, displayName, goals = []) => {
+      signup: async (email, password, displayName, goals = [], gender = 'neutral') => {
         const res = await fetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -70,6 +77,7 @@ const useUserStore = create(
             password,
             display_name: displayName,
             goals,
+            gender,
           }),
         });
 
@@ -87,6 +95,7 @@ const useUserStore = create(
           userId: data.user_id,
           email: data.email,
           displayName: data.display_name,
+          gender: data.gender || gender || 'neutral',
           goals: data.goals || [],
           isAuthenticated: true,
           onboarded: true,

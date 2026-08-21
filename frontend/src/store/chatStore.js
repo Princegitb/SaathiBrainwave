@@ -137,6 +137,7 @@ const useChatStore = create((set, get) => ({
 
     try {
       const userId = useUserStore.getState().ensureUserId();
+      const userGender = useUserStore.getState().gender || "neutral";
       const token = useUserStore.getState().token;
       const headers = { 
         "Content-Type": "application/json",
@@ -153,6 +154,7 @@ const useChatStore = create((set, get) => ({
             content: msg.content,
           })),
           user_id: userId,
+          gender: userGender,
           is_voice_mode: isVoiceMode,
         }),
       });

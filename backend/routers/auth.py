@@ -25,6 +25,7 @@ class SignupRequest(BaseModel):
     password: str
     display_name: str
     goals: Optional[List[str]] = []
+    gender: Optional[str] = "neutral"  # "female" | "male" | "neutral"
 
 
 class LoginRequest(BaseModel):
@@ -37,6 +38,7 @@ class UserResponse(BaseModel):
     email: str
     display_name: str
     goals: List[str]
+    gender: str = "neutral"
     created_at: str
     access_token: Optional[str] = None
     token_type: str = "bearer"
@@ -81,17 +83,19 @@ async def signup(req: SignupRequest):
                 "password_hash": pwd_hashed,
                 "display_name": display_name,
                 "goals": req.goals or ["General Confidence"],
+                "gender": req.gender or "neutral",
                 "preferences": {
                     "preferred_format": "text",
                     "session_length": "short",
                     "goal_tags": req.goals or [],
+                    "gender": req.gender or "neutral",
                 },
                 "created_at": _now_str(),
                 "updated_at": _now_str(),
             }
 
             await users_collection.insert_one(user_doc)
-            logger.info("New user registered in DB: %s (%s)", display_name, email_clean)
+            logger.info("New user registered in DB: %s (%s, %s)", display_name, email_clean, req.gender)
 
             token = create_access_token({"sub": user_id, "email": email_clean})
             return UserResponse(
@@ -99,6 +103,7 @@ async def signup(req: SignupRequest):
                 email=email_clean,
                 display_name=display_name,
                 goals=req.goals or ["General Confidence"],
+                gender=req.gender or "neutral",
                 created_at=user_doc["created_at"],
                 access_token=token,
                 token_type="bearer",
@@ -122,6 +127,7 @@ async def signup(req: SignupRequest):
         "password_hash": pwd_hashed,
         "display_name": display_name,
         "goals": req.goals or ["General Confidence"],
+        "gender": req.gender or "neutral",
         "created_at": _now_str(),
     }
     _MEM_USERS[user_id] = mem_doc
@@ -132,6 +138,7 @@ async def signup(req: SignupRequest):
         email=email_clean,
         display_name=display_name,
         goals=req.goals or ["General Confidence"],
+        gender=req.gender or "neutral",
         created_at=mem_doc["created_at"],
         access_token=token,
         token_type="bearer",
@@ -157,6 +164,7 @@ async def login(req: LoginRequest):
                 email=user["email"],
                 display_name=user.get("display_name", "Friend"),
                 goals=user.get("goals", []),
+                gender=user.get("gender", "neutral"),
                 created_at=user.get("created_at", _now_str()),
                 access_token=token,
                 token_type="bearer",
@@ -176,6 +184,7 @@ async def login(req: LoginRequest):
                     email=u["email"],
                     display_name=u.get("display_name", "Friend"),
                     goals=u.get("goals", []),
+                    gender=u.get("gender", "neutral"),
                     created_at=u.get("created_at", _now_str()),
                     access_token=token,
                     token_type="bearer",

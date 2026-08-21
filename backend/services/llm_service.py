@@ -178,23 +178,43 @@ def _generate_dynamic_mock_response(user_input: str, history_len: int) -> str:
             "Mai samajh raha hu bro. Jab mann bhaari hota hai toh word nahi milte. Araam se ek lamba breath lo, mai bilkul nahi bhaag raha.",
         ])
 
-    fallbacks = [
-        "Mai sun raha hu bhai! 💛 Araam se batao, aur kya mind me chal raha hai?",
-        "Haan bro, mai bilkul samajh raha hu. 💛 Jo bhi bolna hai bina kisi darr ke bolo.",
-        "Sahi baat hai bhai. Har ek practice conversation se aapka confidence badhega. Bolo, aage kya discuss karein?",
-    ]
+def _get_static_companion_fallback(history_len: int, gender: str = "neutral") -> str:
+    if gender.lower() == "female":
+        fallbacks = [
+            "Main sun rahi hoon dost! 💛 Aaraam se batao, aur kya chal raha hai man mein?",
+            "Haan bilkul, main samajh rahi hoon. 💛 Jo bhi bolna hai bina kisi jhijhak ke bolo.",
+            "Sahi baat hai! Har conversation se confidence zaroor badhega. Bolo, aage kya share karna chahti ho?",
+        ]
+    elif gender.lower() == "male":
+        fallbacks = [
+            "Main sun raha hoon bhai! 💛 Aaraam se batao, aur kya mind me chal raha hai?",
+            "Haan bro, main bilkul samajh raha hoon. 💛 Jo bhi bolna hai bina kisi darr ke bolo.",
+            "Sahi baat hai bhai! Har practice conversation se confidence badhega. Bolo, aage kya discuss karein?",
+        ]
+    else:
+        fallbacks = [
+            "Main sun rahi hoon! 💛 Aaraam se bataiye, aur kya chal raha hai aapke man mein?",
+            "Haan, main bilkul samajh sakti hoon. 💛 Jo bhi kehna chahein, bina kisi jhijhak ke bolein.",
+            "Bilkul sahi! Har conversation se confidence badhta hai. Aage kya discuss karein?",
+        ]
     return fallbacks[history_len % len(fallbacks)]
 
 
-async def get_companion_response(messages: list[dict], is_voice_mode: bool = False) -> str:
+async def get_companion_response(
+    messages: list[dict], 
+    is_voice_mode: bool = False,
+    gender: str = "neutral"
+) -> str:
     """
     Get AI Companion response using Gemini API with:
-    1. Dynamic ChromaDB RAG retrieval of top-3 relevant few-shot examples
-    2. History-based repetition guard (last 2-3 AI responses explicitly listed)
-    3. Explicit exception logging for Gemini calls
+    1. Gender-tailored Hindi grammatical agreement and addressing
+    2. Dynamic ChromaDB RAG retrieval of top-3 relevant few-shot examples
+    3. History-based repetition guard (last 2-3 AI responses explicitly listed)
+    4. Explicit exception logging for Gemini calls
     """
     if not messages:
-        return "Hii bhai! I'm Sara. Kaisa chal raha hai aaj ka din?" if is_voice_mode else "Hii bhai! 😊 I'm Sara. Kaisa chal raha hai aaj ka din?"
+        greeting = "Hii dost! I'm Sara. Kaisi ho aap?" if gender.lower() == "female" else "Hii! I'm Sara. Kaise ho aap?"
+        return greeting
 
     user_input = messages[-1]["content"] if messages else ""
 
@@ -219,7 +239,16 @@ async def get_companion_response(messages: list[dict], is_voice_mode: bool = Fal
             repetition_guard_text += f"- \"{reply_str}\"\n"
         repetition_guard_text += "CRITICAL: Vary your wording completely and do not reuse any of the above phrases!\n"
 
-    system_prompt = f"{COMPANION_SYSTEM_PROMPT}\n\n{rag_context_text}\n{repetition_guard_text}"
+    # 3. User Gender Directive
+    gender_directive = ""
+    if gender.lower() == "female":
+        gender_directive = "\nUSER PROFILE & GENDER: The user is Female. Address her warmly with feminine Hindi grammatical agreement (e.g. 'kaisi ho dost', 'batao', 'tumhe kaisa laga') and DO NOT use male words like 'bhai' or 'bro'. Treat her warmly like a supportive sister / close friend."
+    elif gender.lower() == "male":
+        gender_directive = "\nUSER PROFILE & GENDER: The user is Male. Address him warmly and casually (e.g. 'kaise ho dost', 'bhai / dost')."
+    else:
+        gender_directive = "\nUSER PROFILE & GENDER: Gender-neutral. Use polite, respectful, and inclusive gender-neutral Hindi/English (e.g. 'kaise hain aap', 'dost')."
+
+    system_prompt = f"{COMPANION_SYSTEM_PROMPT}\n{gender_directive}\n\n{rag_context_text}\n{repetition_guard_text}"
     if is_voice_mode:
         system_prompt += "\n\nVOICE CALL MODE: Keep your reply strictly to 1 or 2 warm, short spoken sentences (maximum 15-20 words). Speak like a natural human friend on a quick phone call. Do NOT output emojis, symbols, markdown, or lists."
 
